@@ -21,8 +21,9 @@ class Logger {
 	/**
 	 * Function Documentation
 	 *
-	 * @access	public
-	 * @return	void
+	 * @access public
+	 * @param $errorId
+	 * @return bool false
 	 */
 	public function addMessage($errorId) {
 		$args = func_get_args();
@@ -51,7 +52,7 @@ class Logger {
 	 *
 	 * @access	public
 	 * @param	integer	Message ID
-	 * @return	string
+	 * @return	bool false
 	 */
 	public function msg() {
 		$args = func_get_args();
