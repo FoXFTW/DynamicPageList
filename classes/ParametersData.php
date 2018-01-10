@@ -10,6 +10,8 @@
  **/
 namespace DPL;
 
+use MWException;
+
 class ParametersData {
 	/**
 	 * Parameter Richness
@@ -1220,9 +1222,10 @@ class ParametersData {
 	/**
 	 * Return the default value for the parameter.
 	 *
-	 * @access	public
-	 * @param	string	Parameter Name
-	 * @return	mixed
+	 * @access    public
+	 * @param    string    Parameter Name
+	 * @return    mixed
+	 * @throws MWException
 	 */
 	public function getDefault($parameter) {
 		if (array_key_exists($parameter, $this->data)) {
@@ -1237,9 +1240,10 @@ class ParametersData {
 	/**
 	 * Return the acceptable values for the parameter.
 	 *
-	 * @access	public
-	 * @param	string	Parameter Name
-	 * @return	mixed	Array of allowed values or false that the parameter allows any.
+	 * @access    public
+	 * @param    string    Parameter Name
+	 * @return    mixed    Array of allowed values or false that the parameter allows any.
+	 * @throws MWException
 	 */
 	public function getValues($parameter) {
 		if (array_key_exists($parameter, $this->data)) {
@@ -1254,9 +1258,10 @@ class ParametersData {
 	/**
 	 * Does the parameter set that criteria for selection was found?
 	 *
-	 * @access	public
-	 * @param	string	Parameter Name
-	 * @return	boolean
+	 * @access    public
+	 * @param    string    Parameter Name
+	 * @return    boolean
+	 * @throws MWException
 	 */
 	public function setsCriteriaFound($parameter) {
 		if (array_key_exists($parameter, $this->data)) {
@@ -1271,9 +1276,10 @@ class ParametersData {
 	/**
 	 * Does the parameter cause an open reference conflict?
 	 *
-	 * @access	public
-	 * @param	string	Parameter Name
-	 * @return	boolean
+	 * @access    public
+	 * @param    string    Parameter Name
+	 * @return    boolean
+	 * @throws MWException
 	 */
 	public function isOpenReferenceConflict($parameter) {
 		if (array_key_exists($parameter, $this->data)) {
@@ -1288,9 +1294,10 @@ class ParametersData {
 	/**
 	 * Should this parameter preserve the case of the user supplied input?
 	 *
-	 * @access	public
-	 * @param	string	Parameter Name
-	 * @return	boolean
+	 * @access    public
+	 * @param    string    Parameter Name
+	 * @return    boolean
+	 * @throws MWException
 	 */
 	public function shouldPreserveCase($parameter) {
 		if (array_key_exists($parameter, $this->data)) {
@@ -1305,9 +1312,10 @@ class ParametersData {
 	/**
 	 * Does this parameter take a list of page names?
 	 *
-	 * @access	public
-	 * @param	string	Parameter Name
-	 * @return	boolean
+	 * @access    public
+	 * @param    string    Parameter Name
+	 * @return    boolean
+	 * @throws MWException
 	 */
 	public function isPageNameList($parameter) {
 		if (array_key_exists($parameter, $this->data)) {
@@ -1322,9 +1330,10 @@ class ParametersData {
 	/**
 	 * Is the parameter supposed to be parsed as a boolean?
 	 *
-	 * @access	public
-	 * @param	string	Parameter Name
-	 * @return	boolean
+	 * @access    public
+	 * @param    string    Parameter Name
+	 * @return    boolean
+	 * @throws MWException
 	 */
 	public function isBoolean($parameter) {
 		if (array_key_exists($parameter, $this->data)) {
@@ -1339,9 +1348,10 @@ class ParametersData {
 	/**
 	 * Is the parameter supposed to be parsed as a Mediawiki timestamp?
 	 *
-	 * @access	public
-	 * @param	string	Parameter Name
-	 * @return	boolean
+	 * @access    public
+	 * @param    string    Parameter Name
+	 * @return    boolean
+	 * @throws MWException
 	 */
 	public function isTimestamp($parameter) {
 		if (array_key_exists($parameter, $this->data)) {
