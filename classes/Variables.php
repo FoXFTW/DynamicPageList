@@ -25,8 +25,13 @@ class Variables {
 	 */
 	static public $memoryArray = [];
 
-	// expects pairs of 'variable name' and 'value'
-	// if the first parameter is empty it will be ignored {{#vardefine:|a|b}} is the same as {{#vardefine:a|b}}
+	/**
+	 * expects pairs of 'variable name' and 'value'
+	 * if the first parameter is empty it will be ignored {{#vardefine:|a|b}} is the same as {{#vardefine:a|b}}
+	 *
+	 * @param $arg
+	 * @return string
+	 */
 	static public function setVar($arg) {
 		$numargs = count($arg);
 		if ($numargs >= 3 && $arg[2] == '') {
@@ -45,6 +50,10 @@ class Variables {
 		return '';
 	}
 
+	/**
+	 * @param $arg
+	 * @return string
+	 */
 	static public function setVarDefault($arg) {
 		$numargs = count($arg);
 		if ($numargs > 3) {
@@ -59,6 +68,10 @@ class Variables {
 		return '';
 	}
 
+	/**
+	 * @param $var
+	 * @return mixed|string
+	 */
 	static public function getVar($var) {
 		if (array_key_exists($var, self::$memoryVar)) {
 			return self::$memoryVar[$var];
@@ -66,6 +79,10 @@ class Variables {
 		return '';
 	}
 
+	/**
+	 * @param $arg
+	 * @return string|null
+	 */
 	static public function setArray($arg) {
 		$numargs = count($arg);
 		if ($numargs < 5) {
@@ -79,13 +96,13 @@ class Variables {
 		}
 		if ($value == '') {
 			self::$memoryArray[$var] = array();
-			return;
+			return null;
 		}
 		if ($delimiter == '') {
 			self::$memoryArray[$var] = array(
 				$value
 			);
-			return;
+			return null;
 		}
 		if (0 !== strpos($delimiter, '/') || (strlen($delimiter) - 1) !== strrpos($delimiter, '/')) {
 			$delimiter = '/\s*' . $delimiter . '\s*/';
@@ -94,6 +111,10 @@ class Variables {
 		return "value={$value}, delimiter={$delimiter}," . count(self::$memoryArray[$var]);
 	}
 
+	/**
+	 * @param $arg
+	 * @return string
+	 */
 	static public function dumpArray($arg) {
 		$numargs = count($arg);
 		if ($numargs < 3) {
@@ -113,6 +134,13 @@ class Variables {
 		return $text . "}\n";
 	}
 
+	/**
+	 * @param $var
+	 * @param $delimiter
+	 * @param $search
+	 * @param $subject
+	 * @return array|string
+	 */
 	static public function printArray($var, $delimiter, $search, $subject) {
 		$var = trim($var);
 		if ($var == '') {
