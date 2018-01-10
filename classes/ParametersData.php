@@ -1353,4 +1353,3 @@ class ParametersData {
 		throw new MWException(__METHOD__.": Attempted to load a parameter that does not exist.");
 	}
 }
-?>

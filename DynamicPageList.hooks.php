@@ -1,12 +1,12 @@
 <?php
 /**
- * 
+ *
  * @file
  * @ingroup Extensions
  * @link http://www.mediawiki.org/wiki/Extension:DynamicPageList_(third-party)	Documentation
- * @author n:en:User:IlyaHaykinson 
- * @author n:en:User:Amgine 
- * @author w:de:Benutzer:Unendlich 
+ * @author n:en:User:IlyaHaykinson
+ * @author n:en:User:Amgine
+ * @author w:de:Benutzer:Unendlich
  * @author m:User:Dangerman <cyril.dangerville@gmail.com>
  * @author m:User:Algorithmix <gero.scholz@gmx.de>
  * @license http://opensource.org/licenses/gpl-license.php GNU Public License
@@ -634,4 +634,3 @@ class DynamicPageListHooks {
 		}
 	}
 }
-?>

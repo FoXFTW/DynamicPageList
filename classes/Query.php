@@ -2117,4 +2117,3 @@ class Query {
 		$this->addWhere($where);
 	}
 }
-?>

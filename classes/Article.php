@@ -374,4 +374,3 @@ class Article {
 		self::$headings = [];
 	}
 }
-?>

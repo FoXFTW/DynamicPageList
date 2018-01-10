@@ -78,4 +78,3 @@ class Logger {
 		return false;
 	}
 }
-?>

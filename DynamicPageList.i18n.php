@@ -25,12 +25,11 @@ if (!function_exists('wfJsonI18nShimc4861ceea00d327d')) {
 				}
 				$cachedData['messages'] = array_merge($data, $cachedData['messages']);
 			}
-			
+
 			$cachedData['deps'][] = new FileDependency($fileName);
 		}
 		return true;
 	}
-	
+
 	$GLOBALS['wgHooks']['LocalisationCacheRecache'][] = 'wfJsonI18nShimc4861ceea00d327d';
 }
-?>

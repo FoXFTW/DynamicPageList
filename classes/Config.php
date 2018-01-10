@@ -75,4 +75,3 @@ class Config {
 		self::$settings[$setting] = $value;
 	}
 }
-?>

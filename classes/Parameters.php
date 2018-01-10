@@ -1326,4 +1326,3 @@ class Parameters extends ParametersData {
 		return true;
 	}
 }
-?>
