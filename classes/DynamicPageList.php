@@ -120,7 +120,6 @@ class DynamicPageList {
 						if ($greml > 0) {
 							$this->mOutput .= $this->formatList($nstart - $offset, $portion, $iTitleMaxLen, $defaultTemplateSuffix, $bIncludeTrim, $iTableSortCol, $updateRules, $deleteRules);
 							$nstart += $portion;
-							$portion = 0;
 							break;
 						} else {
 							$this->mOutput .= $this->formatList($nstart - $offset, $portion + $greml, $iTitleMaxLen, $defaultTemplateSuffix, $bIncludeTrim, $iTableSortCol, $updateRules, $deleteRules);
@@ -217,8 +216,11 @@ class DynamicPageList {
 		wfProfileOut(__METHOD__);
 	}
 
+	/**
+	 * @param $numart
+	 * @return string
+	 */
 	public function formatCount($numart) {
-		global $wgLang;
 		if ($this->mHeadingType == 'category') {
 			$message = 'categoryarticlecount';
 		} else {
@@ -227,7 +229,17 @@ class DynamicPageList {
 		return '<p>'.$this->msgExt($message, array(), $numart).'</p>';
 	}
 
-	// substitute symbolic names within a user defined format tag
+	/**
+	 * substitute symbolic names within a user defined format tag
+	 *
+	 * @param $tag
+	 * @param $pagename
+	 * @param $article
+	 * @param $imageUrl
+	 * @param $nr
+	 * @param $titleMaxLength
+	 * @return mixed
+	 */
 	public function substTagParm($tag, $pagename, $article, $imageUrl, $nr, $titleMaxLength) {
 		global $wgLang;
 		if (strchr($tag, '%') < 0) {
@@ -309,8 +321,21 @@ class DynamicPageList {
 		return $sTag;
 	}
 
+	/**
+	 * @param $iStart
+	 * @param $iCount
+	 * @param $iTitleMaxLen
+	 * @param $defaultTemplateSuffix
+	 * @param $bIncludeTrim
+	 * @param $iTableSortCol
+	 * @param $updateRules
+	 * @param $deleteRules
+	 * @return string
+	 * @throws \MWException
+	 * @throws \ReadOnlyError
+	 */
 	public function formatList($iStart, $iCount, $iTitleMaxLen, $defaultTemplateSuffix, $bIncludeTrim, $iTableSortCol, $updateRules, $deleteRules) {
-		global $wgUser, $wgLang, $wgContLang;
+		global $wgLang, $wgContLang;
 
 		$mode = $this->mListMode;
 		//categorypage-style list output mode
@@ -700,8 +725,12 @@ class DynamicPageList {
 	 * (3) save the article with the changed value set or with other changes (exec=save)
 	 * "other changes" means that a regexp can be applied to the source text or arbitrary text can be
 	 * inserted before or after a pattern occuring in the text
+	 * @param string $title
+	 * @param string $text
+	 * @param string $rulesText
+	 * @return string
+	 * @throws \MWException
 	 */
-
 	public function updateArticleByRule($title, $text, $rulesText) {
 		// we use ; as command delimiter; \; stands for a semicolon
 		// \n is translated to a real linefeed
@@ -727,7 +756,6 @@ class DynamicPageList {
 		$optional        = array();
 
 		$lastCmd         = '';
-		$message         = '';
 		$summary         = '';
 		$editForm        = false;
 		$action          = '';
@@ -964,7 +992,7 @@ class DynamicPageList {
 					foreach ($parameter as $nr => $parm) {
 						// set parameters to values specified in the dpl source or get them from the http request
 						if ($exec == 'set') {
-							$myvalue = $value[$nr];
+							$myValue = $value[$nr];
 						}
 						else {
 							if ($call >= $matchCount) {
@@ -1010,7 +1038,14 @@ class DynamicPageList {
 		return "exec must be one of the following: edit, preview, set";
 	}
 
-	public function updateArticle($title, $text, $summary) {
+	/**
+	 * @param $title
+	 * @param $text
+	 * @param $summary
+	 * @return string
+	 * @throws \MWException
+	 */
+	public function updateArticle( $title, $text, $summary) {
 		global $wgUser, $wgRequest, $wgOut;
 
 		if (!$wgUser->matchEditToken($wgRequest->getVal('wpEditToken'))) {
@@ -1032,6 +1067,20 @@ class DynamicPageList {
 		}
 	}
 
+	/**
+	 * @param $text
+	 * @param $template
+	 * @param $call
+	 * @param $parameter
+	 * @param $type
+	 * @param $value
+	 * @param $format
+	 * @param $legend
+	 * @param $instruction
+	 * @param $optional
+	 * @param $fieldFormat
+	 * @return mixed
+	 */
 	public function editTemplateCall($text, $template, $call, $parameter, $type, $value, $format, $legend, $instruction, $optional, $fieldFormat) {
 		$matches = array();
 		$nlCount = preg_match_all('/\n/', $value, $matches);
@@ -1053,6 +1102,10 @@ class DynamicPageList {
 
 	/**
 	 * return an array of template invocations; each element is an associative array of parameter and value
+	 *
+	 * @param $text
+	 * @param $template
+	 * @return array|string
 	 */
 	public function getTemplateParmValues($text, $template) {
 		$matches   = array();
@@ -1118,8 +1171,18 @@ class DynamicPageList {
 		return $tval;
 	}
 
-	/*
-	 * Changes a single parameter value within a certain call of a tempplate
+	/**
+	 * Changes a single parameter value within a certain call of a template
+	 *
+	 * @param $matchCount
+	 * @param $text
+	 * @param $template
+	 * @param $call
+	 * @param $parameter
+	 * @param $value
+	 * @param $afterParm
+	 * @param $optional
+	 * @return string
 	 */
 	public function updateTemplateCall(&$matchCount, $text, $template, $call, $parameter, $value, $afterParm, $optional) {
 
@@ -1133,10 +1196,12 @@ class DynamicPageList {
 		if ($noMatches <= 0) {
 			return $text;
 		}
-		$beginSubst  = -1;
-		$endSubst    = -1;
-		$posInsertAt = 0;
-		$apNrLast    = 1000; // last (optional) predecessor
+		$beginSubst   = -1;
+		$endSubst     = -1;
+		$posInsertAt  = 0;
+		$apNrLast     = 1000; // last (optional) predecessor
+		$i            = 0;
+		$substitution = '';
 
 		foreach ($matches as $matchA) {
 			$matchCount = count($matchA);
@@ -1245,6 +1310,13 @@ class DynamicPageList {
 
 	}
 
+	/**
+	 * @param $title
+	 * @param $text
+	 * @param $rulesText
+	 * @return string
+	 * @throws \ReadOnlyError
+	 */
 	public function deleteArticleByRule($title, $text, $rulesText) {
 
 		global $wgUser, $wgOut;
@@ -1309,7 +1381,13 @@ class DynamicPageList {
 		return $message;
 	}
 
-	// generate a hyperlink to the article
+	/**
+	 * generate a hyperlink to the article
+	 * @param $tag
+	 * @param $article
+	 * @param $iTitleMaxLen
+	 * @return mixed
+	 */
 	public function articleLink($tag, $article, $iTitleMaxLen) {
 		$pagename = $article->mTitle->getPrefixedText();
 		if ($this->mEscapeLinks && ($article->mNamespace == NS_CATEGORY || $article->mNamespace == NS_FILE)) {
@@ -1319,12 +1397,25 @@ class DynamicPageList {
 		return $this->substTagParm($tag, $pagename, $article, $this->filteredCount, '', $iTitleMaxLen);
 	}
 
-	//format one item of an entry in the output list (i.e. the collection of occurences of one item from the include parameter)
+	/**
+	 * format one item of an entry in the output list (i.e. the collection of occurences of one item from the include parameter)
+	 *
+	 * @param $piece
+	 * @param $tagStart
+	 * @param $tagEnd
+	 * @return string
+	 */
 	public function formatItem($piece, $tagStart, $tagEnd) {
 		return $tagStart.$piece.$tagEnd;
 	}
 
-	//format one single item of an entry in the output list (i.e. one occurence of one item from the include parameter)
+	/**
+	 * format one single item of an entry in the output list (i.e. one occurence of one item from the include parameter)
+	 *
+	 * @param $pieces
+	 * @param $s
+	 * @param $article
+	 */
 	public function formatSingleItems(&$pieces, $s, $article) {
 		$firstCall = true;
 		foreach ($pieces as $key => $val) {
@@ -1357,8 +1448,18 @@ class DynamicPageList {
 		}
 	}
 
-	//format one single template argument of one occurence of one item from the include parameter
-	// is called via a backlink from LST::includeTemplate()
+	/**
+	 * format one single template argument of one occurence of one item from the include parameter
+	 * is called via a backlink from LST::includeTemplate()
+	 *
+	 * @param $arg
+	 * @param $s
+	 * @param $argNr
+	 * @param $firstCall
+	 * @param $maxlen
+	 * @param $article
+	 * @return mixed|string
+	 */
 	public function formatTemplateArg($arg, $s, $argNr, $firstCall, $maxlen, $article) {
 		// we could try to format fields differently within the first call of a template
 		// currently we do not make such a difference
@@ -1391,7 +1492,11 @@ class DynamicPageList {
 		}
 	}
 
-	//return the total number of rows (filtered)
+	/**
+	 * return the total number of rows (filtered)
+	 *
+	 * @return int
+	 */
 	public function getRowCount() {
 		return intval($this->filteredCount);
 	}
@@ -1401,11 +1506,12 @@ class DynamicPageList {
 	 * ... it is not larger that $lim characters
 	 * ... it is balanced in terms of braces, brackets and tags
 	 * ... can be used as content of a wikitable field without spoiling the whole surrounding wikitext structure
-	 * @param  $lim     limit of character count for the result
-	 * @param  $text    the wikitext to be truncated
-	 * @return the truncated text; note that in some cases it may be slightly longer than the given limit
-	 *         if the text is alread shorter than the limit or if the limit is negative, the text
-	 *         will be returned without any checks for balance of tags
+	 * @param  int    $lim     limit of character count for the result
+	 * @param  string $text    the wikitext to be truncated
+	 * @return string the truncated text; note that in some cases it may be slightly longer than
+	 *                the given limit
+	 *                if the text is alread shorter than the limit or if the limit is negative, the
+	 *                text will be returned without any checks for balance of tags
 	 */
 	public function cutAt($lim, $text) {
 		if ($lim < 0) {
@@ -1414,8 +1520,16 @@ class DynamicPageList {
 		return LST::limitTranscludedText($text, $lim);
 	}
 
-	//slightly different from CategoryViewer::formatList() (no need to instantiate a CategoryViewer object)
+	/**
+	 * slightly different from CategoryViewer::formatList() (no need to instantiate a CategoryViewer object)
+	 *
+	 * @param $iStart
+	 * @param $iCount
+	 * @return string
+	 */
 	public function formatCategoryList($iStart, $iCount) {
+		$aArticles_start_char = [];
+
 		for ($i = $iStart; $i < $iStart + $iCount; $i++) {
 			$aArticles[]            = $this->mArticles[$i]->mLink;
 			$aArticles_start_char[] = $this->mArticles[$i]->mStartChar;
@@ -1433,8 +1547,8 @@ class DynamicPageList {
 	/**
 	 * Prepends an image name with its hash path.
 	 *
-	 * @param  $imgName name of the image (may start with Image: or File:)
-	 * @return $uniq_prefix
+	 * @param  string $imgName name of the image (may start with Image: or File:)
+	 * @return string $uniq_prefix
 	 */
 	static public function imageWithPath($imgName) {
 		$title = \Title::newfromText('Image:'.$imgName);
@@ -1450,6 +1564,9 @@ class DynamicPageList {
 	/**
 	 * Returns message in the requested format after parsing wikitext to html
 	 * This is meant to be equivalent to wfMsgExt() with parse, parsemag and escape as available options but using the DPL local parser instead of the global one (bugfix).
+	 * @param $key
+	 * @param $options
+	 * @return string
 	 */
 	public function msgExt($key, $options) {
 		$args = func_get_args();
@@ -1475,8 +1592,10 @@ class DynamicPageList {
 		return $string;
 	}
 
+	/**
+	 * @return string mOutput
+	 */
 	public function getText() {
 		return $this->mOutput;
 	}
-
 }
