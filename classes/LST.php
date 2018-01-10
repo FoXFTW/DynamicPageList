@@ -16,7 +16,7 @@
  * In this copy names were changed (wfLst.. --> wfDplLst..).
  * So any version of LabeledSectionTransclusion can be installed together with DPL
  *
- * Enhancements were made to 
+ * Enhancements were made to
  *     -  allow inclusion of templates ("template swapping")
  *     -  reduce the size of the transcluded text to a limit of <n> characters
  *
@@ -34,7 +34,7 @@ class LST {
 
 	/**
 	 * Register what we're working on in the parser, so we don't fall into a trap.
-	 * @param $parser Parser
+	 * @param $parser \Parser
 	 * @param $part1
 	 * @return bool
 	 */
@@ -52,9 +52,9 @@ class LST {
 
 	/**
 	 * Finish processing the function.
-	 * @param $parser Parser
+	 * @param $parser \Parser
 	 * @param $part1
-	 * @return bool
+	 * @return void
 	 */
 	static public function close( $parser, $part1 ) {
 		// Infinite loop test
@@ -68,7 +68,19 @@ class LST {
 	/**
 	 * Handle recursive substitution here, so we can break cycles, and set up
 	 * return values so that edit sections will resolve correctly.
-	 **/
+	 *
+	 * @param $parser
+	 * @param $title
+	 * @param $text
+	 * @param $part1
+	 * @param int $skiphead
+	 * @param bool $recursionCheck
+	 * @param int $maxLength
+	 * @param string $link
+	 * @param bool $trim
+	 * @param array $skipPattern
+	 * @return mixed|null|string|string[]
+	 */
 	private static function parse($parser, $title, $text, $part1, $skiphead = 0, $recursionCheck = true, $maxLength = -1, $link = '', $trim = false, $skipPattern = array()) {
 
 		// if someone tries something like<section begin=blah>lst only</section>
@@ -82,7 +94,7 @@ class LST {
 
 		if (self::open($parser, $part1)) {
 
-			//Handle recursion here, so we can break cycles.    
+			//Handle recursion here, so we can break cycles.
 			if ($recursionCheck == false) {
 				$text = $parser->preprocess($text, $parser->mTitle, $parser->mOptions);
 				self::close($parser, $part1);
@@ -112,14 +124,21 @@ class LST {
 	 *
 	 * @param string $in
 	 * @param array $assocArgs
-	 * @param Parser $parser
+	 * @param \Parser $parser
 	 * @return string HTML output
 	 */
 	static private function noop( $in, $assocArgs = array(), $parser = null ) {
 		return '';
 	}
 
-	///Generate a regex to match the section(s) we're interested in.
+	/**
+	 * Generate a regex to match the section(s) we're interested in.
+	 *
+	 * @param $sec
+	 * @param $to
+	 * @param $any
+	 * @return string
+	 */
 	private static function createSectionPattern($sec, $to, &$any) {
 		$any    = false;
 		$to_sec = ($to == '') ? $sec : $to;
@@ -175,6 +194,13 @@ class LST {
 		return $count;
 	}
 
+	/**
+	 * @param \Parser $parser
+	 * @param string $page
+	 * @param string $title
+	 * @param string $text
+	 * @return bool
+	 */
 	public static function text($parser, $page, &$title, &$text) {
 		$title = \Title::newFromText($page);
 
@@ -194,7 +220,18 @@ class LST {
 		}
 	}
 
-	///section inclusion - include all matching sections
+	/**
+	 * section inclusion - include all matching sections
+	 *
+	 * @param \Parser $parser
+	 * @param string $page
+	 * @param string $sec
+	 * @param string $to
+	 * @param bool $recursionCheck
+	 * @param bool $trim
+	 * @param array $skipPattern
+	 * @return array
+	 */
 	public static function includeSection($parser, $page = '', $sec = '', $to = '', $recursionCheck = true, $trim = false, $skipPattern = array()) {
 		$output = array();
 		if (self::text($parser, $page, $title, $text) == false) {
@@ -225,14 +262,16 @@ class LST {
 	 * ... it is balanced in terms of braces, brackets and tags
 	 * ... it is cut at a word boundary (white space) if possible
 	 * ... can be used as content of a wikitable field without spoiling the whole surrounding wikitext structure
-	 * @param  $lim     limit of character count for the result
-	 * @param  $text    the wikitext to be truncated
-	 * @param  $link    an optional link which will be appended to the text if it was truncatedt
-	 * @return the truncated text;
-	 *         note that the returned text may be longer than the limit if this is necessary
-	 *         to return something at all. We do not want to return an empty string if the input is not empty
-	 *         if the text is already shorter than the limit, the text
-	 *         will be returned without any checks for balance of tags
+	 * @param  string $text    the wikitext to be truncated
+	 * @param  int    $limit   limit of character count for the result
+	 * @param  string $link    an optional link which will be appended to the text if it was
+	 *                         truncated
+	 * @return string the truncated text;
+	 *                note that the returned text may be longer than the limit if this is necessary
+	 *                to return something at all. We do not want to return an empty string if the
+	 *                input is not empty
+	 *                if the text is already shorter than the limit, the text will be returned
+	 *                without any checks for balance of tags
 	 */
 	public static function limitTranscludedText($text, $limit, $link = '') {
 
@@ -277,7 +316,7 @@ class LST {
 			}
 		}
 
-		// if there is a valid cut-off point we use it; it will be the largest one which is not above the limit 
+		// if there is a valid cut-off point we use it; it will be the largest one which is not above the limit
 		if ($n0 >= 0) {
 			// we try to cut off at a word boundary, this may lead to a shortening of max. 15 chars
 			if ($nb > 0 && $nb + 15 > $n0) {
@@ -285,7 +324,7 @@ class LST {
 			}
 			$cut = substr($text, 0, $n0 + 1);
 
-			// an open html comment would be fatal, but this should not happen as we already have 
+			// an open html comment would be fatal, but this should not happen as we already have
 			// eliminated html comments at the beginning
 
 			// some tags are critical: ref, pre, nowiki
@@ -335,6 +374,19 @@ class LST {
 		}
 	}
 
+	/**
+	 * @param \Parser $parser
+	 * @param string $page
+	 * @param string $sec
+	 * @param string $to
+	 * @param $sectionHeading
+	 * @param bool $recursionCheck
+	 * @param int $maxLength
+	 * @param string $link
+	 * @param bool $trim
+	 * @param array $skipPattern
+	 * @return array|mixed
+	 */
 	public static function includeHeading($parser, $page = '', $sec = '', $to = '', &$sectionHeading, $recursionCheck = true, $maxLength = -1, $link = 'default', $trim = false, $skipPattern = array()) {
 		$output = array();
 		if (self::text($parser, $page, $title, $text) == false) {
@@ -346,13 +398,33 @@ class LST {
 		return self::extractHeadingFromText($parser, $page, $title, $text, $sec, $to, $sectionHeading, $recursionCheck, $maxLength, $link, $trim, $skipPattern);
 	}
 
-	//section inclusion - include all matching sections (return array)
+	/**
+	 * section inclusion - include all matching sections (return array)
+	 *
+	 * @param \Parser $parser
+	 * @param $page
+	 * @param $title
+	 * @param $text
+	 * @param string $sec
+	 * @param string $to
+	 * @param $sectionHeading
+	 * @param bool $recursionCheck
+	 * @param int $maxLength
+	 * @param string $cLink
+	 * @param bool $trim
+	 * @param array $skipPattern
+	 * @return mixed
+	 */
 	public static function extractHeadingFromText($parser, $page, $title, $text, $sec = '', $to = '', &$sectionHeading, $recursionCheck = true, $maxLength = -1, $cLink = 'default', $trim = false, $skipPattern = array()) {
 
 		$continueSearch = true;
 		$n              = 0;
 		$output[$n]     = '';
 		$nr             = 0;
+		$m              = [];
+		$head_len       = 0;
+		$begin_off      = 0;
+
 		// check if we are going to fetch the n-th section
 		if (preg_match('/^%-?[1-9][0-9]*$/', $sec)) {
 			$nr = substr($sec, 1);
@@ -493,14 +565,29 @@ class LST {
 		return $output;
 	}
 
-
-
-	// template inclusion - find the place(s) where template1 is called,
-	// replace its name by template2, then expand template2 and return the result
-	// we return an array containing all occurences of the template call which match the condition "$mustMatch"
-	// and do NOT match the condition "$mustNotMatch" (if specified)
-	// we use a callback function to format retrieved parameters, accessible via $dpl->formatTemplateArg()
-	public static function includeTemplate($parser, &$dpl, $dplNr, $article, $template1 = '', $template2 = '', $defaultTemplate, $mustMatch, $mustNotMatch, $matchParsed, $iTitleMaxLen, $catlist) {
+	/**
+	 * template inclusion - find the place(s) where template1 is called,
+	 * replace its name by template2, then expand template2 and return the result
+	 * we return an array containing all occurrences of the template call which match the
+	 * condition "$mustMatch"
+	 * and do NOT match the condition "$mustNotMatch" (if specified)
+	 * we use a callback function to format retrieved parameters, accessible via $dpl->formatTemplateArg()
+	 *
+	 * @param \Parser $parser
+	 * @param DynamicPageList $dpl
+	 * @param $dplNr
+	 * @param $article
+	 * @param string $template1
+	 * @param string $template2
+	 * @param $defaultTemplate
+	 * @param $mustMatch
+	 * @param $mustNotMatch
+	 * @param $matchParsed
+	 * @param $iTitleMaxLen
+	 * @param $catList
+	 * @return array
+	 */
+	public static function includeTemplate( $parser, &$dpl, $dplNr, $article, $template1 = '', $template2 = '', $defaultTemplate, $mustMatch, $mustNotMatch, $matchParsed, $iTitleMaxLen, $catList) {
 		$page  = $article->mTitle->getPrefixedText();
 		$date  = $article->myDate;
 		$user  = $article->mUserLink;
@@ -557,7 +644,7 @@ class LST {
 
 		// check if we want to extract parameters directly from the call
 		// in that case we won´t invoke template2 but will directly return the extracted parameters
-		// as a sequence of table columns; 
+		// as a sequence of table columns;
 		if (strlen($template2) > strlen($template1) && substr($template2, 0, strlen($template1) + 1) == ($template1 . ':')) {
 			$extractParm = preg_split('/:\s*/s', trim(substr($template2, strlen($template1) + 1)));
 		}
@@ -612,8 +699,8 @@ class LST {
 						if (($mustMatch == '' || preg_match($mustMatch, substr($templateCall, 0, $i - 1))) && ($mustNotMatch == '' || !preg_match($mustNotMatch, substr($templateCall, 0, $i - 1)))) {
 							$invocation = substr($templateCall, 0, $i - 1);
 							$argChain   = $invocation . '|%PAGE%=' . $page . '|%TITLE%=' . $title->getText();
-							if ($catlist != '') {
-								$argChain .= "|%CATLIST%=$catlist";
+							if ( $catList != '') {
+								$argChain .= "|%CATLIST%=$catList";
 							}
 							$argChain .= '|%DATE%=' . $date . '|%USER%=' . $user . '|%ARGS%=' . str_replace('|', '§', preg_replace('/[}]+/', '}', preg_replace('/[{]+/', '{', substr($invocation, strlen($template2) + 2)))) . '}}';
 							$output[++$n] = $parser->preprocess($argChain, $parser->mTitle, $parser->mOptions);
@@ -717,9 +804,13 @@ class LST {
 		return $output;
 	}
 
+	/**
+	 * returns a pattern that matches underscores as well as spaces
+	 *
+	 * @param $pattern
+	 * @return mixed
+	 */
 	static function spaceOrUnderscore($pattern) {
-		// returns a pettern that matches underscores as well as spaces
 		return str_replace(' ', '[ _]', $pattern);
 	}
-
 }
