@@ -121,9 +121,10 @@ class DynamicPageListHooks {
 	/**
 	 * Sets up this extension's parser functions.
 	 *
-	 * @access	public
-	 * @param	object	Parser object passed as a reference.
-	 * @return	boolean true
+	 * @access    public
+	 * @param    Parser    Parser object passed as a reference.
+	 * @return    boolean true
+	 * @throws MWException
 	 */
 	static public function onParserFirstCallInit(Parser &$parser) {
 		self::init();
@@ -148,9 +149,10 @@ class DynamicPageListHooks {
 	/**
 	 * Sets up this extension's parser functions for migration from Intersection.
 	 *
-	 * @access	public
-	 * @param	object	Parser object passed as a reference.
-	 * @return	boolean true
+	 * @access    public
+	 * @param    Parser    Parser object passed as a reference.
+	 * @return    boolean true
+	 * @throws MWException
 	 */
 	static public function setupMigration(Parser &$parser) {
 		$parser->setHook('Intersection', [__CLASS__, 'intersectionTag']);
@@ -167,8 +169,6 @@ class DynamicPageListHooks {
 	 * @return	void
 	 */
 	static private function init() {
-		global $wgUser;
-
 		\DPL\Config::init();
 
 		if (!isset(self::$createdLinks)) {
@@ -210,8 +210,8 @@ class DynamicPageListHooks {
 	 * @access	public
 	 * @param	string	Raw User Input
 	 * @param	array	Arguments on the tag.
-	 * @param	object	Parser object.
-	 * @param	object	PPFrame object.
+	 * @param	Parser	Parser object.
+	 * @param	PPFrame	PPFrame object.
 	 * @return	string	HTML
 	 */
 	static public function intersectionTag($input, array $args, Parser $parser, PPFrame $frame) {
@@ -225,8 +225,8 @@ class DynamicPageListHooks {
 	 * @access	public
 	 * @param	string	Raw User Input
 	 * @param	array	Arguments on the tag.
-	 * @param	object	Parser object.
-	 * @param	object	PPFrame object.
+	 * @param	Parser	Parser object.
+	 * @param	PPFrame	PPFrame object.
 	 * @return	string	HTML
 	 */
 	static public function dplTag($input, array $args, Parser $parser, PPFrame $frame) {
@@ -240,8 +240,8 @@ class DynamicPageListHooks {
 	 * @access	public
 	 * @param	string	Raw User Input
 	 * @param	array	Arguments on the tag.(While not used, it is left here for future compatibility.)
-	 * @param	object	Parser object.
-	 * @param	object	PPFrame object.
+	 * @param	Parser	Parser object.
+	 * @param	PPFrame	PPFrame object.
 	 * @return	string	HTML
 	 */
 	static private function executeTag($input, array $args, Parser $parser, PPFrame $frame) {
@@ -281,10 +281,10 @@ class DynamicPageListHooks {
 	 * The #dpl parser tag entry point.
 	 *
 	 * @access	public
-	 * @param	object	Parser object passed as a reference.
-	 * @return	string	Wiki Text
+	 * @param	Parser	Parser object passed as a reference.
+	 * @return	array|string	Wiki Text
 	 */
-	static public function dplParserFunction(&$parser) {
+	static public function dplParserFunction(Parser &$parser) {
 		self::setLikeIntersection(false);
 
 		// callback for the parser function {{#dpl:	  or   {{DynamicPageList::
@@ -305,11 +305,11 @@ class DynamicPageListHooks {
 
 		$parse = new \DPL\Parse();
 		$dplresult = $parse->parse($input, $parser, $reset, $eliminate, false);
-		return array( // parser needs to be coaxed to do further recursive processing
+		return [ // parser needs to be coaxed to do further recursive processing
 			$parser->getPreprocessor()->preprocessToObj($dplresult, Parser::PTD_FOR_INCLUSION ),
 			'isLocalObj' => true,
 			'title' => $parser->getTitle()
-		);
+		];
 
 	}
 
@@ -317,9 +317,10 @@ class DynamicPageListHooks {
 	 * The #dplnum parser tag entry point.
 	 * From the old documentation: "Tries to guess a number that is buried in the text.  Uses a set of heuristic rules which may work or not.  The idea is to extract the number so that it can be used as a sorting value in the column of a DPL table output."
 	 *
-	 * @access	public
-	 * @param	object	Parser object passed as a reference.
-	 * @return	string	Wiki Text
+	 * @access    public
+	 * @param    Parser $parser Parser object passed as a reference.
+	 * @param    string $text
+	 * @return    string    Wiki Text
 	 */
 	static public function dplNumParserFunction(&$parser, $text = '') {
 		$num = str_replace('&#160;', ' ', $text);
@@ -339,6 +340,11 @@ class DynamicPageListHooks {
 		return $num;
 	}
 
+	/**
+	 * @param Parser $parser
+	 * @param string $cmd
+	 * @return mixed|string
+	 */
 	static public function dplVarParserFunction(&$parser, $cmd) {
 		$args = func_get_args();
 		if ($cmd == 'set') {
@@ -349,6 +355,10 @@ class DynamicPageListHooks {
 		return \DPL\Variables::getVar($cmd);
 	}
 
+	/**
+	 * @param string $needle
+	 * @return bool
+	 */
 	static private function isRegexp($needle) {
 		if (strlen($needle) < 3) {
 			return false;
@@ -366,6 +376,13 @@ class DynamicPageListHooks {
 		return false;
 	}
 
+	/**
+	 * @param Parser $parser
+	 * @param string $text
+	 * @param string $pat
+	 * @param string $repl
+	 * @return null|string|string[]
+	 */
 	static public function dplReplaceParserFunction(&$parser, $text, $pat = '', $repl = '') {
 		if ($text == '' || $pat == '') {
 			return '';
@@ -381,18 +398,50 @@ class DynamicPageListHooks {
 		return @preg_replace($pat, $repl, $text);
 	}
 
+	/**
+	 * @param Parser $parser
+	 * @param string $text
+	 * @param string $heading
+	 * @param int $maxLength
+	 * @param string $page
+	 * @param string $link
+	 * @param bool $trim
+	 * @return mixed
+	 */
 	static public function dplChapterParserFunction(&$parser, $text = '', $heading = ' ', $maxLength = -1, $page = '?page?', $link = 'default', $trim = false) {
-		$output = \DPL\LST::extractHeadingFromText($parser, $page, '?title?', $text, $heading, '', $sectionHeading, true, $maxLength, $link, $trim);
+		$output = \DPL\LST::extractHeadingFromText(
+			$parser,
+			$page,
+			'?title?',
+			$text,
+			$heading,
+			'',
+			$sectionHeading,
+			true,
+			$maxLength,
+			$link,
+			$trim
+		);
+
 		return $output[0];
 	}
 
+	/**
+	 * @param Parser $parser
+	 * @param string $name
+	 * @param string $yes
+	 * @param string $no
+	 * @param string $flip
+	 * @param string $matrix
+	 * @return string
+	 */
 	static public function dplMatrixParserFunction(&$parser, $name = '', $yes = '', $no = '', $flip = '', $matrix = '') {
 		$lines   = explode("\n", $matrix);
 		$m       = [];
 		$sources = [];
 		$targets = [];
 		$from    = '';
-		$to      = '';
+
 		if ($flip == '' | $flip == 'normal') {
 			$flip = false;
 		} else {
@@ -473,6 +522,12 @@ class DynamicPageListHooks {
 		}
 	}
 
+	/**
+	 * Only used in Development
+	 *
+	 * @param Parser $parser
+	 * @param string $label
+	 */
 	static private function dumpParsedRefs($parser, $label) {
 		//if (!preg_match("/Query Q/",$parser->mTitle->getText())) return '';
 		echo '<pre>parser mLinks: ';
@@ -517,7 +572,7 @@ class DynamicPageListHooks {
 	 * Return Debugging Level
 	 *
 	 * @access	public
-	 * @return	void
+	 * @return	int
 	 */
 	static public function getDebugLevel() {
 		return self::$debugLevel;
@@ -551,6 +606,11 @@ class DynamicPageListHooks {
 		return true;
 	}
 
+	/**
+	 * @param Parser $parser
+	 * @param string $text
+	 * @return bool
+	 */
 	static public function endEliminate(&$parser, &$text) {
 		// called during the final output phase; removes links created by DPL
 		if (isset(self::$createdLinks)) {
@@ -602,12 +662,10 @@ class DynamicPageListHooks {
 	 * Setups and Modifies Database Information
 	 *
 	 * @access	public
-	 * @param	object	[Optional] DatabaseUpdater Object
+	 * @param	DatabaseUpdater	[Optional] DatabaseUpdater Object
 	 * @return	boolean	true
 	 */
 	static public function onLoadExtensionSchemaUpdates(DatabaseUpdater $updater = null) {
-		$extDir = __DIR__;
-
 		$updater->addExtensionUpdate([[__CLASS__, 'createDPLTemplate']]);
 
 		return true;
@@ -616,8 +674,9 @@ class DynamicPageListHooks {
 	/**
 	 * Creates the DPL template when updating.
 	 *
-	 * @access	public
-	 * @return	void
+	 * @access    public
+	 * @return    void
+	 * @throws MWException
 	 */
 	static public function createDPLTemplate() {
 		//Make sure page "Template:Extension DPL" exists
