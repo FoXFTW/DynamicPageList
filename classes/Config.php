@@ -10,6 +10,8 @@
  **/
 namespace DPL;
 
+use MWException;
+
 class Config {
 	/**
 	 * Configuration Settings
@@ -21,9 +23,10 @@ class Config {
 	/**
 	 * Initialize the static object with settings.
 	 *
-	 * @access	public
-	 * @param	array	Settings to initialize for DPL.
-	 * @return	void
+	 * @access    public
+	 * @param    bool    Settings to initialize for DPL.
+	 * @return    void
+	 * @throws MWException
 	 */
 	static public function init($settings = false) {
 		if ($settings === false) {
@@ -63,10 +66,11 @@ class Config {
 	/**
 	 * Set a single setting.
 	 *
-	 * @access	public
-	 * @param	string	Setting Key
-	 * @param	mixed	[Optional] Appropriate value for the setting key.
-	 * @return	void
+	 * @access    public
+	 * @param    string    Setting Key
+	 * @param    mixed    [Optional] Appropriate value for the setting key.
+	 * @return    void
+	 * @throws MWException
 	 */
 	static public function setSetting($setting, $value = null) {
 		if (empty($setting) || !is_string($setting)) {
