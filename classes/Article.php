@@ -197,8 +197,8 @@ class Article {
 	 *
 	 * @access	public
 	 * @param	array	Database Row
-	 * @param	object	\DPL\Parameters Object
-	 * @param	object	Mediawiki Title Object
+	 * @param	Parameters	\DPL\Parameters Object
+	 * @param	\Title	Mediawiki Title Object
 	 * @param	integer	Page Namespace ID
 	 * @param	string	Page Title as Selected from Query
 	 * @return	object	\DPL\Article Object
