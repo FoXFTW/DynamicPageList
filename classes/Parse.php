@@ -10,6 +10,9 @@
  **/
 namespace DPL;
 
+use MWException;
+use Wikimedia\Rdbms\ResultWrapper;
+
 class Parse {
 	/**
 	 * Mediawiki Database Object
@@ -45,13 +48,6 @@ class Parse {
 	 * @var		array
 	 */
 	private $tableNames = [];
-
-	/**
-	 * Cache Key for this tag parse.
-	 *
-	 * @var		string
-	 */
-	private $cacheKey = null;
 
 	/**
 	 * Header Output
@@ -102,6 +98,16 @@ class Parse {
 	];
 
 	/**
+	 * @var Query
+	 */
+	private $query;
+
+	/**
+	 * @var \WebRequest
+	 */
+	private $wgRequest;
+
+	/**
 	 * Main Constructor
 	 *
 	 * @access	public
@@ -112,7 +118,7 @@ class Parse {
 
 		$this->DB			= wfGetDB(DB_SLAVE);
 		$this->parameters	= new Parameters();
-		$this->logger		= new Logger($this->parameters->getData('debug')['default']);
+		$this->logger		= new Logger();
 		$this->tableNames	= Query::getTableNames();
 		$this->wgRequest	= $wgRequest;
 	}
@@ -120,13 +126,14 @@ class Parse {
 	/**
 	 * The real callback function for converting the input text to wiki text output
 	 *
-	 * @access	public
-	 * @param	string	Raw User Input
-	 * @param	object	Mediawiki Parser object.
-	 * @param	array	End Reset Booleans
-	 * @param	array	End Eliminate Booleans
-	 * @param	boolean	[Optional] Called as a parser tag
-	 * @return	string	Wiki/HTML Output
+	 * @access    public
+	 * @param    string    Raw User Input
+	 * @param    \Parser    Mediawiki Parser object.
+	 * @param    array    End Reset Booleans
+	 * @param    array    End Eliminate Booleans
+	 * @param    boolean    [Optional] Called as a parser tag
+	 * @return    string    Wiki/HTML Output
+	 * @throws \MWException
 	 */
 	public function parse($input, \Parser $parser, &$reset, &$eliminate, $isParserTag = false) {
 		wfProfileIn(__METHOD__);
@@ -158,7 +165,7 @@ class Parse {
 			}
 		}
 		$input = $this->resolveUrlArguments($input, $this->urlArguments);
-		$this->getUrlArgs($this->parser);
+		$this->getUrlArgs();
 
 		$this->parameters->setParameter('offset', $this->wgRequest->getInt('DPL_offset', $this->parameters->getData('offset')['default']));
 		$offset = $this->parameters->getParameter('offset');
@@ -340,6 +347,11 @@ class Parse {
 		$dplTime = "{$dplElapsedTime} ({$nowTimeStamp})";
 		$this->setVariable('DPLTIME', $dplTime);
 
+		$firstNamespaceFound = '';
+		$firstTitleFound = '';
+		$lastNamespaceFound = '';
+		$lastTitleFound = '';
+
 		//Replace %LASTTITLE% / %LASTNAMESPACE% by the last title found in header and footer
 		if (($n = count($articles)) > 0) {
 			$firstNamespaceFound = str_replace(' ', '_', $articles[0]->mTitle->getNamespace());
@@ -372,7 +384,7 @@ class Parse {
 		if ($this->parameters->getParameter('allowcachedresults')) {
 			$this->parser->getOutput()->updateCacheExpiry($this->parameters->getParameter('cacheperiod') ? $this->parameters->getParameter('cacheperiod') : 3600);
 		} else {
-			$this->parser->disableCache();
+			$this->parser->getOutput()->updateCacheExpiry(0);
 		}
 
 		$finalOutput = $this->getFullOutput($foundRows, false);
@@ -388,13 +400,14 @@ class Parse {
 	 * Process Query Results
 	 *
 	 * @access	private
-	 * @param	object	Mediawiki Result Object
+	 * @param	ResultWrapper $result	Mediawiki Result Object
 	 * @return	array	Array of Article objects.
 	 */
 	private function processQueryResults($result) {
 		/*******************************/
 		/* Random Count Pick Generator */
 		/*******************************/
+		$pick = [];
 		$randomCount = $this->parameters->getParameter('randomcount');
 		if ($randomCount > 0) {
 			$nResults = $this->DB->numRows($result);
@@ -469,8 +482,8 @@ class Parse {
 	 * Do basic clean up and structuring of raw user input.
 	 *
 	 * @access	private
-	 * @param	string	Raw User Input
-	 * @return	array	Array of raw text parameter => option.
+	 * @param	string	$input Raw User Input
+	 * @return	array|bool	Array of raw text parameter => option.
 	 */
 	private function prepareUserInput($input) {
 		//We replace double angle brackets with single angle brackets to avoid premature tag expansion in the input.
@@ -699,7 +712,7 @@ class Parse {
 	 * Work through processed parameters and check for potential issues.
 	 *
 	 * @access	private
-	 * @return	void
+	 * @return	bool
 	 */
 	private function doQueryErrorChecks() {
 		/**************************/
@@ -1025,6 +1038,7 @@ class Parse {
 	 */
 	private function cardSuitSort($articles) {
 		$sortKeys = [];
+		$sortedArticles = [];
 		foreach ($articles as $key => $article) {
 			$title  = preg_replace('/.*:/', '', $article->mTitle);
 			$tokens  = preg_split('/ - */', $title);
