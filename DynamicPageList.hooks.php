@@ -247,6 +247,9 @@ class DynamicPageListHooks {
 	static private function executeTag($input, array $args, Parser $parser, PPFrame $frame) {
 		// entry point for user tag <dpl>  or  <DynamicPageList>
 		// create list and do a recursive parse of the output
+		$saveTemplates = [];
+		$saveCategories = [];
+		$saveImages = [];
 
 		$parse = new \DPL\Parse();
 		if (\DPL\Config::getSetting('recursiveTagParse')) {
