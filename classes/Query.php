@@ -10,6 +10,8 @@
  **/
 namespace DPL;
 
+use MWException;
+
 class Query {
 	/**
 	 * Parameters Object
@@ -141,7 +143,7 @@ class Query {
 	 * Main Constructor
 	 *
 	 * @access	public
-	 * @param	object	Parameters
+	 * @param	Parameters $parameters Parameters
 	 * @return	void
 	 */
 	public function __construct(Parameters $parameters) {
@@ -155,9 +157,10 @@ class Query {
 	/**
 	 * Start a query build.
 	 *
-	 * @access	public
-	 * @param	boolean	Calculate Found Rows
-	 * @return	mixed	Mediawiki Result Object or False
+	 * @access    public
+	 * @param    boolean    Calculate Found Rows
+	 * @return    mixed    Mediawiki Result Object or False
+	 * @throws MWException
 	 */
 	public function buildAndSelect($calcRows = false) {
 		global $wgNonincludableNamespaces;
@@ -175,8 +178,7 @@ class Query {
 				$success = $this->$function($option);
 			}
 			if ($success === false) {
-				throw new \MWException(__METHOD__.": SQL Build Error returned from {$function} for ".serialize($option).".");
-				return;
+				throw new MWException(__METHOD__.": SQL Build Error returned from {$function} for ".serialize($option).".");
 			}
 			$this->parametersProcessed[$parameter] = true;
 		}
@@ -311,11 +313,11 @@ class Query {
 				$this->foundRows = intval($total['rowcount']);
 				$this->DB->freeResult($calcRowsResult);
 			}
-		} catch (Exception $e) {
+		} catch (\Exception $e) {
 			$queryError = true;
 		}
 		if ($queryError == true || $result === false) {
-			throw new \MWException(__METHOD__.": ".wfMessage('dpl_query_error', DPL_VERSION, $this->DB->lastError())->text());
+			throw new MWException(__METHOD__.": ".wfMessage('dpl_query_error', DPL_VERSION, $this->DB->lastError())->text());
 		}
 
 		wfProfileOut(__METHOD__.": Database Query");
@@ -372,17 +374,18 @@ class Query {
 	/**
 	 * Add a table to the output.
 	 *
-	 * @access	public
-	 * @param	string	Raw Table Name - Will be ran through tableName().
-	 * @param	string	Table Alias
-	 * @return	boolean Success - Added, false if the table alias already exists.
+	 * @access    public
+	 * @param    string    Raw Table Name - Will be ran through tableName().
+	 * @param    string    Table Alias
+	 * @return    boolean Success - Added, false if the table alias already exists.
+	 * @throws MWException
 	 */
 	public function addTable($table, $alias) {
 		if (empty($table)) {
-			throw new \MWException(__METHOD__.': An empty table name was passed.');
+			throw new MWException(__METHOD__.': An empty table name was passed.');
 		}
 		if (empty($alias) || is_numeric($alias)) {
-			throw new \MWException(__METHOD__.': An empty or numeric table alias was passed.');
+			throw new MWException(__METHOD__.': An empty or numeric table alias was passed.');
 		}
 		if (!isset($this->tables[$alias])) {
 			$this->tables[$alias] = $this->DB->tableName($table);
@@ -394,23 +397,23 @@ class Query {
 
 	/**
 	 * Add a where clause to the output.
-	 * Where clauses get imploded together with AND at the end.	 Any custom where clauses should be preformed before placed into here.
+	 * Where clauses get imploded together with AND at the end.     Any custom where clauses should be preformed before placed into here.
 	 *
-	 * @access	public
-	 * @param	string	Where clause
-	 * @return	boolean Success
+	 * @access    public
+	 * @param    string    Where clause
+	 * @return    boolean Success
+	 * @throws MWException
 	 */
 	public function addWhere($where) {
 		if (empty($where)) {
-			throw new \MWException(__METHOD__.': An empty where clause was passed.');
+			throw new MWException(__METHOD__.': An empty where clause was passed.');
 		}
 		if (is_string($where)) {
 			$this->where[] = $where;
 		} elseif (is_array($where)) {
 			$this->where = array_merge($this->where, $where);
 		} else {
-			throw new \MWException(__METHOD__.': An invalid where clause was passed.');
-			return false;
+			throw new MWException(__METHOD__.': An invalid where clause was passed.');
 		}
 		return true;
 	}
@@ -418,22 +421,21 @@ class Query {
 	/**
 	 * Add a where clause to the output that uses NOT IN or !=.
 	 *
-	 * @access	public
-	 * @param	array	Field => Value(s)
-	 * @return	boolean Success
+	 * @access    public
+	 * @param    array    Field => Value(s)
+	 * @return    boolean Success
+	 * @throws MWException
 	 */
 	public function addNotWhere($where) {
 		if (empty($where)) {
-			throw new \MWException(__METHOD__.': An empty not where clause was passed.');
-			return false;
+			throw new MWException(__METHOD__.': An empty not where clause was passed.');
 		}
 		if (is_array($where)) {
 			foreach ($where as $field => $values) {
 				$this->where[] = $field.(count($values) > 1 ? ' NOT IN('.$this->DB->makeList($values).')' : ' != '.$this->DB->addQuotes(current($values)));
 			}
 		} else {
-			throw new \MWException(__METHOD__.': An invalid not where clause was passed.');
-			return false;
+			throw new MWException(__METHOD__.': An invalid not where clause was passed.');
 		}
 		return true;
 	}
@@ -442,18 +444,19 @@ class Query {
 	 * Add a field to select.
 	 * Will ignore duplicate values if the exact same alias and exact same field are passed.
 	 *
-	 * @access	public
-	 * @param	array	Array of fields with the array key being the field alias.  Leave the array key as a numeric index to not specify an alias.
-	 * @return	boolean Success
+	 * @access    public
+	 * @param    array    Array of fields with the array key being the field alias.  Leave the array key as a numeric index to not specify an alias.
+	 * @return    boolean Success
+	 * @throws MWException
 	 */
 	public function addSelect($fields) {
 		if (!is_array($fields)) {
-			throw new \MWException(__METHOD__.': A non-array was passed.');
+			throw new MWException(__METHOD__.': A non-array was passed.');
 		}
 		foreach ($fields as $alias => $field) {
 			if (!is_numeric($alias) && array_key_exists($alias, $this->select) && $this->select[$alias] != $field) {
 				//In case of a code bug that is overwriting an existing field alias throw an exception.
-				throw new \MWException(__METHOD__.": Attempted to overwrite existing field alias `{$this->select[$alias]}` AS `{$alias}` with `{$field}` AS `{$alias}`.");
+				throw new MWException(__METHOD__.": Attempted to overwrite existing field alias `{$this->select[$alias]}` AS `{$alias}` with `{$field}` AS `{$alias}`.");
 			}
 			//String alias and does not exist already.
 			if (!is_numeric($alias) && !array_key_exists($alias, $this->select)) {
@@ -472,13 +475,14 @@ class Query {
 	/**
 	 * Add a GROUP BY clause to the output.
 	 *
-	 * @access	public
-	 * @param	string	Group By Clause
-	 * @return	boolean Success
+	 * @access    public
+	 * @param    string    Group By Clause
+	 * @return    boolean Success
+	 * @throws MWException
 	 */
 	public function addGroupBy($groupBy) {
 		if (empty($groupBy)) {
-			throw new \MWException(__METHOD__.': An empty group by clause was passed.');
+			throw new MWException(__METHOD__.': An empty group by clause was passed.');
 		}
 		$this->groupBy[] = $groupBy;
 		return true;
@@ -487,13 +491,14 @@ class Query {
 	/**
 	 * Add a ORDER BY clause to the output.
 	 *
-	 * @access	public
-	 * @param	string	Order By Clause
-	 * @return	boolean Success
+	 * @access    public
+	 * @param    string    Order By Clause
+	 * @return    boolean Success
+	 * @throws MWException
 	 */
 	public function addOrderBy($orderBy) {
 		if (empty($orderBy)) {
-			throw new \MWException(__METHOD__.': An empty order by clause was passed.');
+			throw new MWException(__METHOD__.': An empty order by clause was passed.');
 		}
 		$this->orderBy[] = $orderBy;
 		return true;
@@ -502,17 +507,18 @@ class Query {
 	/**
 	 * Add a JOIN clause to the output.
 	 *
-	 * @access	public
-	 * @param	string	Table Alias
-	 * @param	array	Join Conditions in the format of the join type to the on where condition.  Example: ['JOIN TYPE' => 'this = that']
-	 * @return	boolean Success
+	 * @access    public
+	 * @param    string    Table Alias
+	 * @param    array    Join Conditions in the format of the join type to the on where condition.  Example: ['JOIN TYPE' => 'this = that']
+	 * @return    boolean Success
+	 * @throws MWException
 	 */
 	public function addJoin($tableAlias, $joinConditions) {
 		if (empty($tableAlias) || empty($joinConditions)) {
-			throw new \MWException(__METHOD__.': An empty join clause was passed.');
+			throw new MWException(__METHOD__.': An empty join clause was passed.');
 		}
 		if (isset($this->join[$tableAlias])) {
-			throw new \MWException(__METHOD__.': Attempted to overwrite existing join clause.');
+			throw new MWException(__METHOD__.': Attempted to overwrite existing join clause.');
 		}
 		$this->join[$tableAlias] = $joinConditions;
 		return true;
@@ -675,9 +681,10 @@ class Query {
 	/**
 	 * Set SQL for 'addauthor' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _addauthor($option) {
 		//Addauthor can not be used with addlasteditor.
@@ -696,9 +703,10 @@ class Query {
 	/**
 	 * Set SQL for 'addcategories' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _addcategories($option) {
 		$this->addTable('categorylinks', 'cl_gc');
@@ -720,9 +728,10 @@ class Query {
 	/**
 	 * Set SQL for 'addcontribution' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _addcontribution($option) {
 		$this->addTable('recentchanges', 'rc');
@@ -743,9 +752,10 @@ class Query {
 	/**
 	 * Set SQL for 'addfirstcategorydate' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _addfirstcategorydate($option) {
 		//@TODO: This should be programmatically determining which categorylink table to use instead of assuming the first one.
@@ -759,9 +769,10 @@ class Query {
 	/**
 	 * Set SQL for 'addlasteditor' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _addlasteditor($option) {
 		//Addlasteditor can not be used with addauthor.
@@ -781,9 +792,10 @@ class Query {
 	/**
 	 * Set SQL for 'addpagecounter' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _addpagecounter($option) {
 		if (class_exists("\\HitCounters\\Hooks")) {
@@ -808,9 +820,10 @@ class Query {
 	/**
 	 * Set SQL for 'addpagesize' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _addpagesize($option) {
 		$this->addSelect(
@@ -823,9 +836,10 @@ class Query {
 	/**
 	 * Set SQL for 'addpagetoucheddate' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _addpagetoucheddate($option) {
 		$this->addSelect(
@@ -838,10 +852,11 @@ class Query {
 	/**
 	 * Set SQL for 'adduser' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @param	string	[Optional] Table Alias
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @param    string    [Optional] Table Alias
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _adduser($option, $tableAlias = '') {
 		$tableAlias = (!empty($tableAlias) ? $tableAlias.'.' : '');
@@ -857,9 +872,10 @@ class Query {
 	/**
 	 * Set SQL for 'allrevisionsbefore' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _allrevisionsbefore($option) {
 		$this->addTable('revision', 'rev');
@@ -882,9 +898,10 @@ class Query {
 	/**
 	 * Set SQL for 'allrevisionssince' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _allrevisionssince($option) {
 		$this->addTable('revision', 'rev');
@@ -907,9 +924,10 @@ class Query {
 	/**
 	 * Set SQL for 'articlecategory' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _articlecategory($option) {
 		$this->addWhere("{$this->tableNames['page']}.page_title IN (SELECT p2.page_title FROM {$this->tableNames['page']} p2 INNER JOIN {$this->tableNames['categorylinks']} clstc ON (clstc.cl_from = p2.page_id AND clstc.cl_to = ".$this->DB->addQuotes($option).") WHERE p2.page_namespace = 0)");
@@ -918,9 +936,10 @@ class Query {
 	/**
 	 * Set SQL for 'categoriesminmax' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _categoriesminmax($option) {
 		if (is_numeric($option[0])) {
@@ -934,9 +953,10 @@ class Query {
 	/**
 	 * Set SQL for 'category' parameter.  This includes 'category', 'categorymatch', and 'categoryregexp'.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _category($option) {
 		$i = 0;
@@ -986,9 +1006,10 @@ class Query {
 	/**
 	 * Set SQL for 'notcategory' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _notcategory($option) {
 		$i = 0;
@@ -1018,9 +1039,10 @@ class Query {
 	/**
 	 * Set SQL for 'createdby' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _createdby($option) {
 		$this->addTable('revision', 'creation_rev');
@@ -1052,9 +1074,10 @@ class Query {
 	/**
 	 * Set SQL for 'firstrevisionsince' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _firstrevisionsince($option) {
 		$this->addTable('revision', 'rev');
@@ -1107,9 +1130,10 @@ class Query {
 	/**
 	 * Set SQL for 'imagecontainer' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _imagecontainer($option) {
 		$this->addTable('imagelinks', 'ic');
@@ -1141,9 +1165,10 @@ class Query {
 	/**
 	 * Set SQL for 'imageused' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _imageused($option) {
 		if ($this->parameters->getParameter('distinct') == 'strict') {
@@ -1173,9 +1198,10 @@ class Query {
 	/**
 	 * Set SQL for 'lastmodifiedby' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _lastmodifiedby($option) {
 	   $this->addWhere($this->DB->addQuotes($option).' = (SELECT rev_user_text FROM '.$this->tableNames['revision'].' WHERE '.$this->tableNames['revision'].'.rev_page=page_id ORDER BY '.$this->tableNames['revision'].'.rev_timestamp DESC LIMIT 1)');
@@ -1184,9 +1210,10 @@ class Query {
 	/**
 	 * Set SQL for 'lastrevisionbefore' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _lastrevisionbefore($option) {
 		$this->addTable('revision', 'rev');
@@ -1209,9 +1236,10 @@ class Query {
 	/**
 	 * Set SQL for 'linksfrom' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _linksfrom($option) {
 		if ($this->parameters->getParameter('distinct') == 'strict') {
@@ -1253,9 +1281,10 @@ class Query {
 	/**
 	 * Set SQL for 'linksto' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _linksto($option) {
 		if ($this->parameters->getParameter('distinct') == 'strict') {
@@ -1313,9 +1342,10 @@ class Query {
 	/**
 	 * Set SQL for 'notlinksfrom' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _notlinksfrom($option) {
 		if ($this->parameters->getParameter('distinct') == 'strict') {
@@ -1345,9 +1375,10 @@ class Query {
 	/**
 	 * Set SQL for 'notlinksto' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _notlinksto($option) {
 		if ($this->parameters->getParameter('distinct') == 'strict') {
@@ -1380,9 +1411,10 @@ class Query {
 	/**
 	 * Set SQL for 'linkstoexternal' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _linkstoexternal($option) {
 		if ($this->parameters->getParameter('distinct') == 'strict') {
@@ -1416,20 +1448,22 @@ class Query {
 	/**
 	 * Set SQL for 'maxrevisions' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _maxrevisions($option) {
-		$this->addWhere("((SELECT count(rev_aux3.rev_page) FROM {$this->tableNames['revision']} AS rev_aux3 WHERE rev_aux3.rev_page = {$this->tableNames['page']}.page_id) <= {$iMaxRevisions})");
+		$this->addWhere("((SELECT count(rev_aux3.rev_page) FROM {$this->tableNames['revision']} AS rev_aux3 WHERE rev_aux3.rev_page = {$this->tableNames['page']}.page_id) <= {$option})");
 	}
 
 	/**
 	 * Set SQL for 'minoredits' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _minoredits($option) {
 		if (isset($option) && $option == 'exclude') {
@@ -1440,9 +1474,10 @@ class Query {
 	/**
 	 * Set SQL for 'minrevisions' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _minrevisions($option) {
 		$this->addWhere("((SELECT count(rev_aux2.rev_page) FROM {$this->tableNames['revision']} AS rev_aux2 WHERE rev_aux2.rev_page = {$this->tableNames['page']}.page_id) >= {$option})");
@@ -1451,9 +1486,10 @@ class Query {
 	/**
 	 * Set SQL for 'modifiedby' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _modifiedby($option) {
 		$this->addTable('revision', 'change_rev');
@@ -1463,9 +1499,10 @@ class Query {
 	/**
 	 * Set SQL for 'namespace' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _namespace($option) {
 		if (is_array($option) && count($option)) {
@@ -1488,9 +1525,10 @@ class Query {
 	/**
 	 * Set SQL for 'notcreatedby' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _notcreatedby($option) {
 		$this->addTable('revision', 'no_creation_rev');
@@ -1500,9 +1538,10 @@ class Query {
 	/**
 	 * Set SQL for 'notlastmodifiedby' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _notlastmodifiedby($option) {
 		$this->addWhere($this->DB->addQuotes($option).' != (SELECT rev_user_text FROM '.$this->tableNames['revision'].' WHERE '.$this->tableNames['revision'].'.rev_page=page_id ORDER BY '.$this->tableNames['revision'].'.rev_timestamp DESC LIMIT 1)');
@@ -1511,9 +1550,10 @@ class Query {
 	/**
 	 * Set SQL for 'notmodifiedby' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _notmodifiedby($option) {
 		$this->addWhere('NOT EXISTS (SELECT 1 FROM '.$this->tableNames['revision'].' WHERE '.$this->tableNames['revision'].'.rev_page=page_id AND '.$this->tableNames['revision'].'.rev_user_text = '.$this->DB->addQuotes($option).' LIMIT 1)');
@@ -1522,9 +1562,10 @@ class Query {
 	/**
 	 * Set SQL for 'notnamespace' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _notnamespace($option) {
 		if (is_array($option) && count($option)) {
@@ -1587,9 +1628,9 @@ class Query {
 	/**
 	 * Set SQL for 'ordercollation' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return bool
 	 */
 	private function _ordercollation($option) {
 		$option = mb_strtolower($option);
@@ -1611,9 +1652,10 @@ class Query {
 	/**
 	 * Set SQL for 'ordermethod' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return bool|void
+	 * @throws MWException
 	 */
 	private function _ordermethod($option) {
 		global $wgContLang;
@@ -1825,9 +1867,10 @@ class Query {
 	/**
 	 * Set SQL for 'redirects' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _redirects($option) {
 		if (!$this->parameters->getParameter('openreferences')) {
@@ -1853,9 +1896,10 @@ class Query {
 	/**
 	 * Set SQL for 'stablepages' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _stablepages($option) {
 		if (function_exists('efLoadFlaggedRevs')) {
@@ -1891,9 +1935,10 @@ class Query {
 	/**
 	 * Set SQL for 'qualitypages' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _qualitypages($option) {
 		if (function_exists('efLoadFlaggedRevs')) {
@@ -1921,9 +1966,10 @@ class Query {
 	/**
 	 * Set SQL for 'title' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _title($option) {
 		$ors = [];
@@ -1952,9 +1998,10 @@ class Query {
 	/**
 	 * Set SQL for 'nottitle' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _nottitle($option) {
 		$ors = [];
@@ -1983,9 +2030,10 @@ class Query {
 	/**
 	 * Set SQL for 'titlegt' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _titlegt($option) {
 		$where = '(';
@@ -2009,9 +2057,10 @@ class Query {
 	/**
 	 * Set SQL for 'titlelt' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _titlelt($option) {
 		$where = '(';
@@ -2035,9 +2084,10 @@ class Query {
 	/**
 	 * Set SQL for 'usedby' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _usedby($option) {
 		if ($this->parameters->getParameter('openreferences')) {
@@ -2067,9 +2117,10 @@ class Query {
 	/**
 	 * Set SQL for 'uses' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _uses($option) {
 		$this->addTable('templatelinks', 'tl');
@@ -2093,9 +2144,10 @@ class Query {
 	/**
 	 * Set SQL for 'notuses' parameter.
 	 *
-	 * @access	private
-	 * @param	mixed	Parameter Option
-	 * @return	void
+	 * @access    private
+	 * @param    mixed    Parameter Option
+	 * @return    void
+	 * @throws MWException
 	 */
 	private function _notuses($option) {
 		if (count($option) > 0) {
