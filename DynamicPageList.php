@@ -18,6 +18,6 @@ if ( function_exists( 'wfLoadExtension' ) ) {
 		'see https://www.mediawiki.org/wiki/Extension_registration for more details.'
 	);
 	return;
- } else {
+} else {
 	die( 'This version of the DynamicPageList extension requires MediaWiki 1.25+' );
 }
