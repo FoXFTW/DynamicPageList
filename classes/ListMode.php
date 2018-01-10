@@ -10,6 +10,8 @@
  **/
 namespace DPL;
 
+use Sanitizer;
+
 class ListMode {
 	public $name;
 	public $sListStart = '';
@@ -107,5 +109,4 @@ class ListMode {
 				break;
 		}
 	}
-
 }
