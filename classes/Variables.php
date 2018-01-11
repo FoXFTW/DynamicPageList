@@ -15,14 +15,14 @@ class Variables {
 	/**
 	 * Memory storage for variables.
 	 *
-	 * @var        array
+	 * @var array
 	 */
 	static public $memoryVar = [];
 
 	/**
 	 * Memory storage for arrays of variables.
 	 *
-	 * @var        array
+	 * @var array
 	 */
 	static public $memoryArray = [];
 
@@ -34,18 +34,18 @@ class Variables {
 	 * @return string
 	 */
 	static public function setVar( $arg ) {
-		$numargs = count( $arg );
+		$numArgs = count( $arg );
 
-		if ( $numargs >= 3 && $arg[2] == '' ) {
+		if ( $numArgs >= 3 && $arg[2] == '' ) {
 			$start = 3;
 		} else {
 			$start = 2;
 		}
 
-		for ( $i = $start; $i < $numargs; $i ++ ) {
+		for ( $i = $start; $i < $numArgs; $i ++ ) {
 			$var = $arg[$i];
 
-			if ( ++ $i <= $numargs - 1 ) {
+			if ( ++ $i <= $numArgs - 1 ) {
 				self::$memoryVar[$var] = $arg[$i];
 			} else {
 				self::$memoryVar[$var] = '';
@@ -60,9 +60,9 @@ class Variables {
 	 * @return string
 	 */
 	static public function setVarDefault( $arg ) {
-		$numargs = count( $arg );
+		$numArgs = count( $arg );
 
-		if ( $numargs > 3 ) {
+		if ( $numArgs > 3 ) {
 			$value = $arg[3];
 		} else {
 			return '';
@@ -94,9 +94,9 @@ class Variables {
 	 * @return string|null
 	 */
 	static public function setArray( $arg ) {
-		$numargs = count( $arg );
+		$numArgs = count( $arg );
 
-		if ( $numargs < 5 ) {
+		if ( $numArgs < 5 ) {
 			return '';
 		}
 
@@ -137,9 +137,9 @@ class Variables {
 	 * @return string
 	 */
 	static public function dumpArray( $arg ) {
-		$numargs = count( $arg );
+		$numArgs = count( $arg );
 
-		if ( $numargs < 3 ) {
+		if ( $numArgs < 3 ) {
 			return '';
 		}
 
