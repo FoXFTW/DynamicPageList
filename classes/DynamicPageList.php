@@ -79,21 +79,21 @@ class DynamicPageList {
 	 *
 	 * @var array
 	 */
-	public $mIncSecLabels = array();
+	public $mIncSecLabels = [];
 
 	/**
 	 * array of match patterns for sections to transclude
 	 *
 	 * @var array
 	 */
-	public $mIncSecLabelsMatch = array();
+	public $mIncSecLabelsMatch = [];
 
 	/**
 	 * array of NOT match patterns for sections to transclude
 	 *
 	 * @var array
 	 */
-	public $mIncSecLabelsNotMatch = array();
+	public $mIncSecLabelsNotMatch = [];
 
 	/**
 	 * whether to match raw parameters or parsed contents
@@ -213,8 +213,8 @@ class DynamicPageList {
 		// 	You must apply the following patch to avoid this:
 		// add in LinkHoldersArray.php at the beginning of function 'merge' the following code lines:
 		//		if (!isset($this->interwikis)) {
-		//			$this->internals = array();
-		//			$this->interwikis = array();
+		//			$this->internals = [];
+		//			$this->interwikis = [];
 		//			$this->size = 0;
 		//			$this->parent  = $other->parent;
 		//		}
@@ -389,7 +389,7 @@ class DynamicPageList {
 			$message = 'dpl_articlecount';
 		}
 
-		return '<p>' . $this->msgExt( $message, array(), $numart ) . '</p>';
+		return '<p>' . $this->msgExt( $message, [], $numart ) . '</p>';
 	}
 
 	/**
@@ -405,9 +405,9 @@ class DynamicPageList {
 		array_shift( $args );
 
 		if ( !is_array( $options ) ) {
-			$options = array(
+			$options = [
 				$options,
-			);
+			];
 		}
 
 		$string = wfMessage( $key, $args )->text();
@@ -529,9 +529,9 @@ class DynamicPageList {
 							     array_key_exists( '0', $mode->sSectionTags ) ) {
 								$incwiki .= $this->substTagParm( $mode->sSectionTags[0], $pageName,
 									$article, $imageUrl, $this->filteredCount, $iTitleMaxLen );
-								$pieces = array(
+								$pieces = [
 									0 => $text,
-								);
+								];
 								$this->formatSingleItems( $pieces, 0, $article );
 								$incwiki .= $pieces[0];
 							} else {
@@ -543,9 +543,9 @@ class DynamicPageList {
 					}
 				} else {
 					// identify section pieces
-					$secPiece = array();
-					$secPieces = array();
-					$skipPattern = array();
+					$secPiece = [];
+					$secPieces = [];
+					$skipPattern = [];
 					$septag = [];
 					$cutLink = 'default';
 					$dominantPieces = false;
@@ -569,14 +569,14 @@ class DynamicPageList {
 						if ( $sSecLabel == '-' ) {
 							// '-' is used as a dummy parameter which will produce no output
 							// if maxlen was 0 we suppress all output; note that for matching we used the full text
-							$secPieces = array(
+							$secPieces = [
 								'',
-							);
+							];
 							$this->formatSingleItems( $secPieces, $s, $article );
 						} elseif ( $sSecLabel[0] != '{' ) {
 							$limpos = strpos( $sSecLabel, '[' );
 							$cutLink = 'default';
-							$skipPattern = array();
+							$skipPattern = [];
 							if ( $limpos > 0 && $sSecLabel[strlen( $sSecLabel ) - 1] == ']' ) {
 								// regular expressions which define a skip pattern may precede the text
 								$fmtSec =
@@ -647,9 +647,9 @@ class DynamicPageList {
 
 							// if maxlen was 0 we suppress all output; note that for matching we used the full text
 							if ( $maxlen == 0 ) {
-								$secPieces = array(
+								$secPieces = [
 									'',
-								);
+								];
 							}
 
 							$this->formatSingleItems( $secPieces, $s, $article );
@@ -683,6 +683,7 @@ class DynamicPageList {
 							if ( ( $mustMatch != '' || $mustNotMatch != '' ) &&
 							     count( $secPieces ) <= 0 ) {
 								$matchFailed = true; // NOTHING MATCHED
+
 								break;
 							}
 						} elseif ( $sSecLabel[0] == '{' ) {
@@ -717,6 +718,7 @@ class DynamicPageList {
 							if ( ( $mustMatch != '' || $mustNotMatch != '' ) &&
 							     count( $secPieces ) <= 1 && $secPieces[0] == '' ) {
 								$matchFailed = true; // NOTHING MATCHED
+
 								break;
 							}
 						} else {
@@ -853,9 +855,9 @@ class DynamicPageList {
 				if ( $article->mCounter != '' ) {
 					// Adapted from SpecialPopularPages::formatResult()
 					// $nv = $this->msgExt( 'nviews', array( 'parsemag', 'escape'), $wgLang->formatNum( $article->mCounter ) );
-					$nv = $this->msgExt( 'hitcounters-nviews', array(
+					$nv = $this->msgExt( 'hitcounters-nviews', [
 						'escape',
-					), $wgLang->formatNum( $article->mCounter ) );
+					], $wgLang->formatNum( $article->mCounter ) );
 					$rBody .= ' ' . $wgContLang->getDirMark() . '(' . $nv . ')';
 				}
 
@@ -998,20 +1000,20 @@ class DynamicPageList {
 		$before = '';
 		$insertionBefore = '';
 		$template = '';
-		$parameter = array();
-		$value = array();
-		$afterparm = array();
-		$format = array();
-		$preview = array();
-		$save = array();
-		$tooltip = array();
-		$optional = array();
+		$parameter = [];
+		$value = [];
+		$afterparm = [];
+		$format = [];
+		$preview = [];
+		$save = [];
+		$tooltip = [];
+		$optional = [];
 
 		$lastCmd = '';
 		$summary = '';
 		$editForm = false;
 		$action = '';
-		$hidden = array();
+		$hidden = [];
 		$legendPage = '';
 		$instructionPage = '';
 		$table = '';
@@ -1192,10 +1194,13 @@ class DynamicPageList {
 				$legendText = '';
 
 				if ( $legendPage != '' ) {
-					$legendTitle = '';
 					global $wgParser, $wgUser;
+
+					$legendTitle = '';
 					$parser = clone $wgParser;
+
 					LST::text( $parser, $legendPage, $legendTitle, $legendText );
+
 					$legendText =
 						preg_replace( '/^.*?\<section\s+begin\s*=\s*legend\s*\/\>/s', '',
 							$legendText );
@@ -1204,14 +1209,16 @@ class DynamicPageList {
 				}
 
 				$instructionText = '';
-				$instructions = array();
+				$instructions = [];
 
 				if ( $instructionPage != '' ) {
 					global $wgParser, $wgUser;
 
 					$instructionTitle = '';
 					$parser = clone $wgParser;
+
 					LST::text( $parser, $instructionPage, $instructionTitle, $instructionText );
+
 					$instructions =
 						$this->getTemplateParmValues( $instructionText, 'Template field' );
 				}
@@ -1306,11 +1313,12 @@ class DynamicPageList {
 							if ( $call >= $matchCount ) {
 								break;
 							}
+
 							$myValue = $wgRequest->getVal( urlencode( $call . '_' . $parm ), '' );
 						}
 
 						$myOptional = array_key_exists( $nr, $optional );
-						$myAfterParm = array();
+						$myAfterParm = [];
 
 						if ( array_key_exists( $nr, $afterparm ) ) {
 							$myAfterParm = $afterparm[$nr];
@@ -1335,6 +1343,7 @@ class DynamicPageList {
 
 			$titleX = Title::newFromText( $title );
 			$articleX = new Article( $titleX );
+
 			$form = '<html>
 	<form id="editform" name="editform" method="post" action="' . $wgScriptPath .
 			        '/index.php?title=' . urlencode( $title ) . '&action=submit" enctype="multipart/form-data">
@@ -1366,7 +1375,7 @@ class DynamicPageList {
 	 * @return array|string
 	 */
 	public function getTemplateParmValues( $text, $template ) {
-		$matches = array();
+		$matches = [];
 		$noMatches =
 			preg_match_all( '/\{\{\s*' . preg_quote( $template, '/' ) . '\s*[|}]/i', $text,
 				$matches, PREG_OFFSET_CAPTURE );
@@ -1376,14 +1385,14 @@ class DynamicPageList {
 		}
 
 		$textLen = strlen( $text );
-		$tval = array(); // the result array of template values
+		$tval = []; // the result array of template values
 		$call = - 1; // index for tval
 
 		foreach ( $matches as $matchA ) {
 			foreach ( $matchA as $matchB ) {
 				$match = $matchB[0];
 				$start = $matchB[1];
-				$tval[++ $call] = array();
+				$tval[++ $call] = [];
 				$nr = 0; // number of parameter if no name given
 				$parmValue = '';
 				$parmName = '';
@@ -1459,7 +1468,7 @@ class DynamicPageList {
 		$text, $template, $call, $parameter, $type, $value, $format, $legend, $instruction,
 		$optional, $fieldFormat
 	) {
-		$matches = array();
+		$matches = [];
 		$nlCount = preg_match_all( '/\n/', $value, $matches );
 
 		if ( $nlCount > 0 ) {
@@ -1511,7 +1520,7 @@ class DynamicPageList {
 			return $text;
 		}
 
-		$matches = array();
+		$matches = [];
 		$noMatches =
 			preg_match_all( '/\{\{\s*' . preg_quote( $template, '/' ) . '\s*[|}]/i', $text,
 				$matches, PREG_OFFSET_CAPTURE );
