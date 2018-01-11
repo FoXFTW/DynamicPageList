@@ -21,77 +21,77 @@ class Parse {
 	/**
 	 * Mediawiki Database Object
 	 *
-	 * @var        \Wikimedia\Rdbms\Database
+	 * @var \Wikimedia\Rdbms\Database
 	 */
-	private $DB = null;
+	private $dbr = null;
 
 	/**
 	 * Mediawiki Parser Object
 	 *
-	 * @var        \Parser
+	 * @var \Parser
 	 */
 	private $parser = null;
 
 	/**
 	 * \DPL\Parameters Object
 	 *
-	 * @var        Parameters
+	 * @var Parameters
 	 */
 	private $parameters = null;
 
 	/**
 	 * \DPL\Logger Object
 	 *
-	 * @var        Logger
+	 * @var \DPL\Logger
 	 */
 	private $logger = null;
 
 	/**
 	 * Array of prequoted table names.
 	 *
-	 * @var        array
+	 * @var array
 	 */
 	private $tableNames = [];
 
 	/**
 	 * Header Output
 	 *
-	 * @var        string
+	 * @var string
 	 */
 	private $header = '';
 
 	/**
 	 * Footer Output
 	 *
-	 * @var        string
+	 * @var string
 	 */
 	private $footer = '';
 
 	/**
 	 * Body Output
 	 *
-	 * @var        string
+	 * @var string
 	 */
 	private $output = '';
 
 	/**
 	 * DynamicPageList Object Holder
 	 *
-	 * @var        DynamicPageList
+	 * @var \DPL\DynamicPageList
 	 */
 	private $dpl = null;
 
 	/**
 	 * Replacement Variables
 	 *
-	 * @var        array
+	 * @var array
 	 */
 	private $replacementVariables = [];
 
 	/**
 	 * Array of possible URL arguments.
 	 *
-	 * @var        array
+	 * @var array
 	 */
 	private $urlArguments = [
 		'DPL_offset',
@@ -102,7 +102,7 @@ class Parse {
 	];
 
 	/**
-	 * @var Query
+	 * @var \DPL\Query
 	 */
 	private $query;
 
@@ -114,13 +114,12 @@ class Parse {
 	/**
 	 * Main Constructor
 	 *
-	 * @access    public
-	 * @return    void
+	 * @return void
 	 */
 	public function __construct() {
 		global $wgRequest;
 
-		$this->DB = wfGetDB( DB_SLAVE );
+		$this->dbr = wfGetDB( DB_SLAVE );
 		$this->parameters = new Parameters();
 		$this->logger = new Logger();
 		$this->tableNames = Query::getTableNames();
@@ -130,13 +129,12 @@ class Parse {
 	/**
 	 * The real callback function for converting the input text to wiki text output
 	 *
-	 * @access    public
-	 * @param    string    Raw User Input
-	 * @param    \Parser    Mediawiki Parser object.
-	 * @param    array    End Reset Booleans
-	 * @param    array    End Eliminate Booleans
-	 * @param    boolean    [Optional] Called as a parser tag
-	 * @return    string    Wiki/HTML Output
+	 * @param string $input Raw User Input
+	 * @param \Parser $parser Mediawiki Parser object.
+	 * @param array $reset End Reset Booleans
+	 * @param array $eliminate End Eliminate Booleans
+	 * @param bool $isParserTag [Optional] Called as a parser tag
+	 * @return string Wiki/HTML Output
 	 * @throws \MWException
 	 */
 	public function parse( $input, Parser $parser, &$reset, &$eliminate, $isParserTag = false ) {
@@ -172,6 +170,7 @@ class Parse {
 				$this->urlArguments[] = 'DPL_arg' . $i;
 			}
 		}
+
 		$input = $this->resolveUrlArguments( $input, $this->urlArguments );
 		$this->getUrlArgs();
 
@@ -183,15 +182,17 @@ class Parse {
 		/* User Input preparation and parsing. */
 		/***************************************/
 		$cleanParameters = $this->prepareUserInput( $input );
+
 		if ( !is_array( $cleanParameters ) ) {
 			//Short circuit for dumb things.
 			$this->logger->addMessage( DynamicPageListHooks::FATAL_NOSELECTION );
 
 			return $this->getFullOutput();
 		}
+
 		$cleanParameters = $this->parameters->sortByPriority( $cleanParameters );
-		$this->parameters->setParameter( 'includeuncat',
-			false ); // to check if pseudo-category of Uncategorized pages is included
+		// to check if pseudo-category of Uncategorized pages is included
+		$this->parameters->setParameter( 'includeuncat', false );
 
 		foreach ( $cleanParameters as $parameter => $option ) {
 			foreach ( $option as $_option ) {
@@ -235,6 +236,7 @@ class Parse {
 		}
 
 		$calcRows = false;
+
 		if ( !Config::getSetting( 'allowUnlimitedResults' ) &&
 		     $this->parameters->getParameter( 'goal' ) != 'categories' &&
 		     strpos( $this->parameters->getParameter( 'resultsheader' ) .
@@ -258,10 +260,11 @@ class Parse {
 			return $this->getFullOutput();
 		}
 
-		$numRows = $this->DB->numRows( $result );
+		$numRows = $this->dbr->numRows( $result );
 		$articles = $this->processQueryResults( $result );
 
 		global $wgDebugDumpSql;
+
 		if ( DynamicPageListHooks::getDebugLevel() >= 4 && $wgDebugDumpSql ) {
 			$this->addOutput( $this->query->getSqlQuery() . "\n" );
 		}
@@ -278,12 +281,13 @@ class Parse {
 		/*********************/
 		if ( $numRows <= 0 || empty( $articles ) ) {
 			//Shortcut out since there is no processing to do.
-			$this->DB->freeResult( $result );
+			$this->dbr->freeResult( $result );
 
 			return $this->getFullOutput( 0, false );
 		}
 
 		$foundRows = null;
+
 		if ( $calcRows ) {
 			$foundRows = $this->query->getFoundRows();
 		}
@@ -423,10 +427,9 @@ class Parse {
 	/**
 	 * Return output optionally including header and footer.
 	 *
-	 * @access    private
-	 * @param    boolean    [Optional] Total results.
-	 * @param    boolean    [Optional] Skip adding the header and footer.
-	 * @return    string    Output
+	 * @param bool $totalResults [Optional] Total results.
+	 * @param bool $skipHeaderFooter [Optional] Skip adding the header and footer.
+	 * @return string Output
 	 */
 	private function getFullOutput( $totalResults = false, $skipHeaderFooter = true ) {
 		if ( !$skipHeaderFooter ) {
@@ -462,10 +465,10 @@ class Parse {
 	/**
 	 * Determine the header/footer type to use based on what output format parameters were chosen and the number of results.
 	 *
-	 * @access    private
-	 * @param    string    Page position to check: 'header' or 'footer'.
-	 * @param    integer    Count of pages.
-	 * @return    mixed    Type to use: 'results', 'oneresult', or 'noresults'.  False if invalid or none should be used.
+	 * @param string $position Page position to check: 'header' or 'footer'.
+	 * @param int $count Count of pages.
+	 * @return mixed Type to use: 'results', 'oneresult', or 'noresults'.
+	 *  False if invalid or none should be used.
 	 */
 	private function getHeaderFooterType( $position, $count ) {
 		$count = intval( $count );
@@ -497,9 +500,8 @@ class Parse {
 	/**
 	 * Set the header text.
 	 *
-	 * @access    private
-	 * @param    string    Header Text
-	 * @return    void
+	 * @param string $header Header Text
+	 * @return void
 	 */
 	private function setHeader( $header ) {
 		if ( DynamicPageListHooks::getDebugLevel() == 5 ) {
@@ -512,9 +514,8 @@ class Parse {
 	/**
 	 * Return text with variables replaced.
 	 *
-	 * @access    private
-	 * @param    string    Text to perform replacements on.
-	 * @return    string    Replaced Text
+	 * @param string $text Text to perform replacements on.
+	 * @return string Replaced Text
 	 */
 	private function replaceVariables( $text ) {
 		$text = self::replaceNewLines( $text );
@@ -529,9 +530,8 @@ class Parse {
 	/**
 	 * Return text with custom new line characters replaced.
 	 *
-	 * @access    private
-	 * @param    string    Text
-	 * @return    string    New Lined Text
+	 * @param string $text Text
+	 * @return string New Lined Text
 	 */
 	static public function replaceNewLines( $text ) {
 		return str_replace( [ '\n', "¶" ], "\n", $text );
@@ -540,9 +540,8 @@ class Parse {
 	/**
 	 * Set the footer text.
 	 *
-	 * @access    private
-	 * @param    string    Footer Text
-	 * @return    void
+	 * @param string $footer Footer Text
+	 * @return void
 	 */
 	private function setFooter( $footer ) {
 		if ( DynamicPageListHooks::getDebugLevel() == 5 ) {
@@ -555,8 +554,7 @@ class Parse {
 	/**
 	 * Set the header text.
 	 *
-	 * @access    private
-	 * @return    string    Header Text
+	 * @return string Header Text
 	 */
 	private function getHeader() {
 		return $this->header;
@@ -565,8 +563,7 @@ class Parse {
 	/**
 	 * Set the footer text.
 	 *
-	 * @access    private
-	 * @return    string    Footer Text
+	 * @return string Footer Text
 	 */
 	private function getFooter() {
 		return $this->footer;
@@ -575,8 +572,7 @@ class Parse {
 	/**
 	 * Set the output text.
 	 *
-	 * @access    private
-	 * @return    string    Output Text
+	 * @return string Output Text
 	 */
 	private function getOutput() {
 		//@TODO: 2015-08-28 Consider calling $this->replaceVariables() here.  Might cause issues with text returned in the results.
@@ -586,10 +582,10 @@ class Parse {
 	/**
 	 * Resolve arguments in the input that would normally be in the URL.
 	 *
-	 * @access    public
-	 * @param    string    Raw Uncleaned User Input
-	 * @param    array    Array of URL arguments to resolve.  Non-arrays will be casted to an array.
-	 * @return    string    Raw input with variables replaced
+	 * @param string $input Raw Uncleaned User Input
+	 * @param array $arguments Array of URL arguments to resolve.
+	 *  Non-arrays will be casted to an array.
+	 * @return string Raw input with variables replaced
 	 */
 	private function resolveUrlArguments( $input, $arguments ) {
 		$arguments = (array)$arguments;
@@ -612,8 +608,7 @@ class Parse {
 	/**
 	 * This function uses the Variables extension to provide URL-arguments like &DPL_xyz=abc in the form of a variable which can be accessed as {{#var:xyz}} if Extension:Variables is installed.
 	 *
-	 * @access    public
-	 * @return    void
+	 * @return void
 	 */
 	private function getUrlArgs() {
 		$args = $this->wgRequest->getValues();
@@ -634,9 +629,8 @@ class Parse {
 	/**
 	 * Do basic clean up and structuring of raw user input.
 	 *
-	 * @access    private
-	 * @param    string $input Raw User Input
-	 * @return    array|bool    Array of raw text parameter => option.
+	 * @param string $input Raw User Input
+	 * @return array|bool Array of raw text parameter => option.
 	 */
 	private function prepareUserInput( $input ) {
 		//We replace double angle brackets with single angle brackets to avoid premature tag expansion in the input.
@@ -705,10 +699,9 @@ class Parse {
 	/**
 	 * Create keys for TableRow which represent the structure of the "include=" arguments.
 	 *
-	 * @access    public
-	 * @param    array    Array of 'tablerow' parameter data.
-	 * @param    array    Array of 'include' parameter data.
-	 * @return    array    Updated 'tablerow' parameter.
+	 * @param array $tableRow Array of 'tablerow' parameter data.
+	 * @param array $sectionLabels Array of 'include' parameter data.
+	 * @return array Updated 'tablerow' parameter.
 	 */
 	private static function updateTableRowKeys( $tableRow, $sectionLabels ) {
 		$_tableRow = (array)$tableRow;
@@ -747,8 +740,7 @@ class Parse {
 	/**
 	 * Work through processed parameters and check for potential issues.
 	 *
-	 * @access    private
-	 * @return    bool
+	 * @return bool
 	 */
 	private function doQueryErrorChecks() {
 		/**************************/
@@ -900,7 +892,7 @@ class Parse {
 		 */
 		if ( $this->parameters->getParameter( 'includeuncat' ) ) {
 			//If the view is not there, we can't perform logical operations on the Uncategorized.
-			if ( !$this->DB->tableExists( 'dpl_clview' ) ) {
+			if ( !$this->dbr->tableExists( 'dpl_clview' ) ) {
 				$sql =
 					'CREATE VIEW ' . $this->tableNames['dpl_clview'] .
 					" AS SELECT IFNULL(cl_from, page_id) AS cl_from, IFNULL(cl_to, '') AS cl_to, cl_sortkey FROM " .
@@ -950,9 +942,8 @@ class Parse {
 	/**
 	 * Process Query Results
 	 *
-	 * @access    private
-	 * @param    ResultWrapper $result Mediawiki Result Object
-	 * @return    array    Array of Article objects.
+	 * @param ResultWrapper $result Mediawiki Result Object
+	 * @return array Array of Article objects.
 	 */
 	private function processQueryResults( $result ) {
 		/*******************************/
@@ -962,7 +953,7 @@ class Parse {
 		$randomCount = $this->parameters->getParameter( 'randomcount' );
 
 		if ( $randomCount > 0 ) {
-			$nResults = $this->DB->numRows( $result );
+			$nResults = $this->dbr->numRows( $result );
 
 			//mt_srand() seeding was removed due to PHP 5.2.1 and above no longer generating the same sequence for the same seed.
 			//Constrain the total amount of random results to not be greater than the total results.
@@ -985,6 +976,7 @@ class Parse {
 		/* Article Processing */
 		/**********************/
 		$i = 0;
+
 		while ( $row = $result->fetchRow() ) {
 			$i ++;
 
@@ -1029,7 +1021,7 @@ class Parse {
 			$articles[] =
 				Article::newFromRow( $row, $this->parameters, $title, $pageNamespace, $pageTitle );
 		}
-		$this->DB->freeResult( $result );
+		$this->dbr->freeResult( $result );
 
 		return $articles;
 	}
@@ -1037,9 +1029,8 @@ class Parse {
 	/**
 	 * Concatenate output
 	 *
-	 * @access    private
-	 * @param    string    Output to add
-	 * @return    void
+	 * @param string $output Output to add
+	 * @return void
 	 */
 	private function addOutput( $output ) {
 		$this->output .= $output;
@@ -1048,10 +1039,10 @@ class Parse {
 	/**
 	 * Set a variable to be replaced with the provided text later at the end of the output.
 	 *
-	 * @access    private
-	 * @param    string    Variable name, will be transformed to uppercase and have leading and trailing percent signs added.
-	 * @param    string    Text to replace the variable with.
-	 * @return    void
+	 * @param string $variable Variable name, will be transformed to uppercase and have leading and
+	 *  trailing percent signs added.
+	 * @param string $replacement Text to replace the variable with.
+	 * @return void
 	 */
 	private function setVariable( $variable, $replacement ) {
 		$variable = "%" . mb_strtoupper( $variable, "UTF-8" ) . "%";
@@ -1061,9 +1052,8 @@ class Parse {
 	/**
 	 * Sort an array of Article objects by the card suit symbol.
 	 *
-	 * @access    private
-	 * @param    array    Article objects in an array.
-	 * @return    array    Sorted objects
+	 * @param array $articles Article objects in an array.
+	 * @return array Sorted objects
 	 */
 	private function cardSuitSort( $articles ) {
 		$sortKeys = [];
@@ -1116,9 +1106,9 @@ class Parse {
 	/**
 	 * This function uses the Variables extension to provide navigation aids such as DPL_firstTitle, DPL_lastTitle, or DPL_findTitle.  These variables can be accessed as {{#var:DPL_firstTitle}} if Extension:Variables is installed.
 	 *
-	 * @access    public
-	 * @param    array    Array of scroll variables with the key as the variable name and the value as the value.  Non-arrays will be casted to arrays.
-	 * @return    void
+	 * @param array $scrollVariables Array of scroll variables with the key as the variable name
+	 * and the value as the value.  Non-arrays will be casted to arrays.
+	 * @return void
 	 */
 	private function defineScrollVariables( $scrollVariables ) {
 		$scrollVariables = (array)$scrollVariables;
@@ -1134,17 +1124,16 @@ class Parse {
 	/**
 	 * Trigger Resets and Eliminates that run at the end of parsing.
 	 *
-	 * @access    private
-	 * @param    string    Full output including header, footer, and any warnings.
-	 * @param    array    End Reset Booleans
-	 * @param    array    End Eliminate Booleans
-	 * @param    boolean    Call as a parser tag
-	 * @return    void
+	 * @param string $output Full output including header, footer, and any warnings.
+	 * @param array $reset End Reset Booleans
+	 * @param array $eliminate End Eliminate Booleans
+	 * @param bool $isParserTag Call as a parser tag
+	 * @return void
 	 */
 	private function triggerEndResets( $output, &$reset, &$eliminate, $isParserTag ) {
 		global $wgHooks;
 
-		$localParser = new \Parser();
+		$localParser = new Parser();
 		$parserOutput =
 			$localParser->parse( $output, $this->parser->mTitle, $this->parser->mOptions );
 
@@ -1212,7 +1201,7 @@ class Parse {
 
 			if ( isset( $eliminate['links'] ) && $eliminate['links'] ) {
 				//Trigger the mediawiki parser to find links, images, categories etc. which are contained in the DPL output.  This allows us to remove these links from the link list later.  If the article containing the DPL statement itself uses one of these links they will be thrown away!
-				DynamicPageListHooks::$createdLinks[0] = array();
+				DynamicPageListHooks::$createdLinks[0] = [];
 
 				foreach ( $parserOutput->getLinks() as $nsp => $link ) {
 					DynamicPageListHooks::$createdLinks[0][$nsp] = $link;
@@ -1220,7 +1209,7 @@ class Parse {
 			}
 
 			if ( isset( $eliminate['templates'] ) && $eliminate['templates'] ) {
-				DynamicPageListHooks::$createdLinks[1] = array();
+				DynamicPageListHooks::$createdLinks[1] = [];
 
 				foreach ( $parserOutput->getTemplates() as $nsp => $tpl ) {
 					DynamicPageListHooks::$createdLinks[1][$nsp] = $tpl;
