@@ -21,8 +21,8 @@ class ListMode {
 	public $sItemStart = '';
 	public $sItemEnd = '';
 	public $sInline = '';
-	public $sSectionTags = array();
-	public $aMultiSecSeparators = array();
+	public $sSectionTags = [];
+	public $aMultiSecSeparators = [];
 	public $iDominantSection = -1;
 
 	/**
