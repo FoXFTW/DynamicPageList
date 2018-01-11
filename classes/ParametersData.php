@@ -18,7 +18,7 @@ class ParametersData {
 	/**
 	 * List of all the valid parameters that can be used per level of functional richness.
 	 *
-	 * @var        array
+	 * @var array
 	 */
 	static private $parametersForRichnessLevel = [
 		0 => [
@@ -153,9 +153,9 @@ class ParametersData {
 
 	/**
 	 * Parameter Richness
-	 * The level of parameters that is accesible for the user.
+	 * The level of parameters that is accessible for the user.
 	 *
-	 * @var        integer
+	 * @var int
 	 */
 	private $parameterRichness = 0;
 
@@ -166,7 +166,7 @@ class ParametersData {
 	 * A 'values' key is the set of possible values.
 	 * For some options (e.g. 'namespace'), possible values are not yet defined, but will be if necessary (for debugging).
 	 *
-	 * @var        array
+	 * @var array
 	 */
 	private $data = [
 		'addauthor' => [
@@ -1096,10 +1096,7 @@ class ParametersData {
 	];
 
 	/**
-	 * Main Constructor
-	 *
-	 * @access    public
-	 * @return    void
+	 * ParametersData constructor.
 	 */
 	public function __construct() {
 		$this->setRichness( Config::getSetting( 'functionalRichness' ) );
@@ -1142,9 +1139,8 @@ class ParametersData {
 	/**
 	 * Sets the current parameter richness.
 	 *
-	 * @access    public
-	 * @param    integer    Integer level.
-	 * @return    void
+	 * @param int $level Richness-level.
+	 * @return void
 	 */
 	public function setRichness( $level ) {
 		$this->parameterRichness = intval( $level );
@@ -1153,9 +1149,8 @@ class ParametersData {
 	/**
 	 * Return if the parameter exists.
 	 *
-	 * @access    public
-	 * @param    string    Parameter name.
-	 * @return    boolean    Exists
+	 * @param string $parameter Parameter name.
+	 * @return bool Exists
 	 */
 	public function exists( $parameter ) {
 		return array_key_exists( $parameter, $this->data );
@@ -1164,9 +1159,8 @@ class ParametersData {
 	/**
 	 * Return data for the supplied parameter.
 	 *
-	 * @access    public
-	 * @param    string    Parameter name.
-	 * @return    mixed    Parameter array or false if it does not exist.
+	 * @param string $parameter Parameter name.
+	 * @return mixed Parameter array or false if it does not exist.
 	 */
 	public function getData( $parameter ) {
 		if ( array_key_exists( $parameter, $this->data ) ) {
@@ -1179,28 +1173,23 @@ class ParametersData {
 	/**
 	 * Tests if the function is valid for the current functional richness level.
 	 *
-	 * @access    public
-	 * @param    string    Function to test.
-	 * @return    boolean    Valid for this functional richness level.
+	 * @param string $function Function to test.
+	 * @return bool Valid for this functional richness level.
 	 */
 	public function testRichness( $function ) {
-		$valid = false;
-
 		for ( $i = 0; $i <= $this->getRichness(); $i ++ ) {
 			if ( in_array( $function, self::$parametersForRichnessLevel[$i] ) ) {
-				$valid = true;
-				break;
+				return true;
 			}
 		}
 
-		return $valid;
+		return false;
 	}
 
 	/**
 	 * Returns the current parameter richness.
 	 *
-	 * @access    public
-	 * @return    integer
+	 * @return int
 	 */
 	public function getRichness() {
 		return $this->parameterRichness;
@@ -1209,9 +1198,9 @@ class ParametersData {
 	/**
 	 * Returns all parameters for the current richness level or limited to the optional maximum richness.
 	 *
-	 * @access    public
-	 * @param    integer    [Optional] Maximum richness level
-	 * @return    array    The functional richness parameters list.
+
+	 * @param int $level [Optional] Maximum richness level
+	 * @return array The functional richness parameters list.
 	 */
 	public function getParametersForRichness( $level = null ) {
 		if ( $level === null ) {
@@ -1232,9 +1221,9 @@ class ParametersData {
 	/**
 	 * Return the default value for the parameter.
 	 *
-	 * @access    public
-	 * @param    string    Parameter Name
-	 * @return    mixed
+
+	 * @param string $parameter Parameter Name
+	 * @return mixed
 	 * @throws \MWException
 	 */
 	public function getDefault( $parameter ) {
@@ -1253,9 +1242,9 @@ class ParametersData {
 	/**
 	 * Return the acceptable values for the parameter.
 	 *
-	 * @access    public
-	 * @param    string    Parameter Name
-	 * @return    mixed    Array of allowed values or false that the parameter allows any.
+
+	 * @param string $parameter Parameter Name
+	 * @return mixed Array of allowed values or false that the parameter allows any.
 	 * @throws \MWException
 	 */
 	public function getValues( $parameter ) {
@@ -1274,9 +1263,9 @@ class ParametersData {
 	/**
 	 * Does the parameter set that criteria for selection was found?
 	 *
-	 * @access    public
-	 * @param    string    Parameter Name
-	 * @return    boolean
+
+	 * @param string $parameter Parameter Name
+	 * @return bool
 	 * @throws \MWException
 	 */
 	public function setsCriteriaFound( $parameter ) {
@@ -1295,9 +1284,9 @@ class ParametersData {
 	/**
 	 * Does the parameter cause an open reference conflict?
 	 *
-	 * @access    public
-	 * @param    string    Parameter Name
-	 * @return    boolean
+
+	 * @param string $parameter Parameter Name
+	 * @return bool
 	 * @throws \MWException
 	 */
 	public function isOpenReferenceConflict( $parameter ) {
@@ -1316,9 +1305,9 @@ class ParametersData {
 	/**
 	 * Should this parameter preserve the case of the user supplied input?
 	 *
-	 * @access    public
-	 * @param    string    Parameter Name
-	 * @return    boolean
+
+	 * @param string $parameter Parameter Name
+	 * @return bool
 	 * @throws \MWException
 	 */
 	public function shouldPreserveCase( $parameter ) {
@@ -1337,9 +1326,9 @@ class ParametersData {
 	/**
 	 * Does this parameter take a list of page names?
 	 *
-	 * @access    public
-	 * @param    string    Parameter Name
-	 * @return    boolean
+
+	 * @param string $parameter Parameter Name
+	 * @return bool
 	 * @throws \MWException
 	 */
 	public function isPageNameList( $parameter ) {
@@ -1358,9 +1347,8 @@ class ParametersData {
 	/**
 	 * Is the parameter supposed to be parsed as a boolean?
 	 *
-	 * @access    public
-	 * @param    string    Parameter Name
-	 * @return    boolean
+	 * @param string $parameter Parameter Name
+	 * @return bool
 	 * @throws \MWException
 	 */
 	public function isBoolean( $parameter ) {
@@ -1379,9 +1367,8 @@ class ParametersData {
 	/**
 	 * Is the parameter supposed to be parsed as a Mediawiki timestamp?
 	 *
-	 * @access    public
-	 * @param    string    Parameter Name
-	 * @return    boolean
+	 * @param string Parameter Name
+	 * @return bool
 	 * @throws \MWException
 	 */
 	public function isTimestamp( $parameter ) {
