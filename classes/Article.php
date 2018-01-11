@@ -79,7 +79,7 @@ class Article {
 	 *
 	 * @var		string
 	 */
-	public $mParentHLink = ''; // heading (link to the associated page) that page belongs to in the list (default '' means no heading)
+	public $mParentHLink = '';
 
 	/**
 	 * Category links on the page.
