@@ -3,110 +3,168 @@
  * DynamicPageList3
  * DPL ListMode Class
  *
- * @author		IlyaHaykinson, Unendlich, Dangerville, Algorithmix, Theaitetos, Alexia E. Smith
- * @license		GPL
- * @package		DynamicPageList3
+ * @author IlyaHaykinson, Unendlich, Dangerville, Algorithmix, Theaitetos, Alexia E. Smith
+ * @license GPL
+ * @package DynamicPageList3
  *
  **/
+
 namespace DPL;
 
+use Sanitizer;
+
 class ListMode {
+	/**
+	 * @var string List Mode Name
+	 */
 	public $name;
+
+	/**
+	 * @var string List starting tag
+	 */
 	public $sListStart = '';
+
+	/**
+	 * @var string List ending tag
+	 */
 	public $sListEnd = '';
+
+	/**
+	 * @var string Heading starting tag (uses $name)
+	 */
 	public $sHeadingStart = '';
+
+	/**
+	 * @var string Heading ending tag (uses $name)
+	 */
 	public $sHeadingEnd = '';
+
+	/**
+	 * @var string Item starting tag
+	 */
 	public $sItemStart = '';
+
+	/**
+	 * @var string Item ending tag
+	 */
 	public $sItemEnd = '';
+
+	/**
+	 * @var string $inlineText or new line
+	 */
 	public $sInline = '';
-	public $sSectionTags = array();
-	public $aMultiSecSeparators = array();
-	public $iDominantSection = -1;
+
+	/**
+	 * @var array $sectionSeparators
+	 */
+	public $sSectionTags = [];
+
+	/**
+	 * @var array $multiSectionSeparators
+	 */
+	public $aMultiSecSeparators = [];
+
+	/**
+	 * @var int $dominantSection
+	 */
+	public $iDominantSection = - 1;
 
 	/**
 	 * Main Constructor
 	 *
-	 * @access	public
-	 * @param	string	List Mode
-	 * @param	string	Section Separators
-	 * @param	string	Multi-Section Separators
-	 * @param	string	Inline Text
-	 * @param	string	[Optional] List Attributes
-	 * @param	string	[Optional] Item Attributes
-	 * @param	string	List Separators
-	 * @param	integer	Offset
-	 * @param	integer	Dominant Section
-	 * @return	void
+	 * @param string $listMode List Mode
+	 * @param string $sectionSeparators Section Separators
+	 * @param string $multiSectionSeparators Multi-Section Separators
+	 * @param string $inlineText Inline Text
+	 * @param string $listAttributes [Optional] List Attributes
+	 * @param string $itemAttributes [Optional] Item Attributes
+	 * @param array $listSeparators List Separators
+	 * @param int $iOffset Offset
+	 * @param int $dominantSection Dominant Section
+	 * @return void
 	 */
-	public function __construct($listmode, $sectionSeparators, $multiSectionSeparators, $inlinetext, $listattr = '', $itemattr = '', $listseparators, $iOffset, $dominantSection) {
+	public function __construct(
+		$listMode, $sectionSeparators, $multiSectionSeparators, $inlineText, $listAttributes = '',
+		$itemAttributes = '', $listSeparators, $iOffset, $dominantSection
+	) {
 		// default for inlinetext (if not in mode=userformat)
-		if (($listmode != 'userformat') && ($inlinetext == '')) {
-			$inlinetext = '&#160;-&#160;';
+		if ( ( $listMode != 'userformat' ) && ( $inlineText == '' ) ) {
+			$inlineText = '&#160;-&#160;';
 		}
-		$this->name = $listmode;
-		$_listattr  = ($listattr == '') ? '' : ' '.Sanitizer::fixTagAttributes($listattr, 'ul');
-		$_itemattr  = ($itemattr == '') ? '' : ' '.Sanitizer::fixTagAttributes($itemattr, 'li');
 
-		$this->sSectionTags        = $sectionSeparators;
+		$this->name = $listMode;
+		$_listAttributes =
+			( $listAttributes == '' ) ? '' : ' ' . Sanitizer::fixTagAttributes( $listAttributes, 'ul' );
+		$_itemAttributes =
+			( $itemAttributes == '' ) ? '' : ' ' . Sanitizer::fixTagAttributes( $itemAttributes, 'li' );
+
+		$this->sSectionTags = $sectionSeparators;
 		$this->aMultiSecSeparators = $multiSectionSeparators;
-		$this->iDominantSection    = $dominantSection - 1; // 0 based index
+		$this->iDominantSection = $dominantSection - 1; // 0 based index
 
-		switch ($listmode) {
+		switch ( strtolower($listMode) ) {
 			case 'inline':
-				if (stristr($inlinetext, '<BR />')) { //one item per line (pseudo-inline)
-					$this->sListStart = '<DIV'.$_listattr.'>';
-					$this->sListEnd   = '</DIV>';
+				if ( stristr( $inlineText, '<br />' ) ) { //one item per line (pseudo-inline)
+					$this->sListStart = "<div {$_listAttributes}>";
+					$this->sListEnd = '</div>';
 				}
-				$this->sItemStart = '<SPAN'.$_itemattr.'>';
-				$this->sItemEnd   = '</SPAN>';
-				$this->sInline    = $inlinetext;
+
+				$this->sItemStart = "<span {$_itemAttributes}>";
+				$this->sItemEnd = '</span>';
+				$this->sInline = $inlineText;
 				break;
+
 			case 'gallery':
 				$this->sListStart = "<gallery>\n";
-				$this->sListEnd   = "\n</gallery>";
-
+				$this->sListEnd = "\n</gallery>";
 				$this->sItemStart = '';
-				$this->sItemEnd   = '||';
-				$this->sInline    =  "\n";
+				$this->sItemEnd = '||';
+				$this->sInline = "\n";
 				break;
+
 			case 'ordered':
-				if ($iOffset == 0) {
-					$this->sListStart = '<OL start=1 '.$_listattr.'>';
+				if ( $iOffset == 0 ) {
+					$this->sListStart = "<ol start=1 {$_listAttributes}>";
 				} else {
-					$this->sListStart = '<OL start='.($iOffset + 1).' '.$_listattr.'>';
+					$iOffset++;
+					$this->sListStart = "<ol start={$iOffset} {$_listAttributes}>";
 				}
-				$this->sListEnd   = '</OL>';
-				$this->sItemStart = '<LI'.$_itemattr.'>';
-				$this->sItemEnd   = '</LI>';
+
+				$this->sListEnd = '</ol>';
+				$this->sItemStart = "<li {$_itemAttributes}>";
+				$this->sItemEnd = '</li>';
 				break;
+
 			case 'unordered':
-				$this->sListStart = '<UL'.$_listattr.'>';
-				$this->sListEnd   = '</UL>';
-				$this->sItemStart = '<LI'.$_itemattr.'>';
-				$this->sItemEnd   = '</LI>';
+				$this->sListStart = "<ul {$_listAttributes}>";
+				$this->sListEnd = '</ul>';
+				$this->sItemStart = "<li {$_itemAttributes}>";
+				$this->sItemEnd = '</li>';
 				break;
+
 			case 'definition':
-				$this->sListStart    = '<DL'.$_listattr.'>';
-				$this->sListEnd      = '</DL>';
+				$this->sListStart = "<dl {$_listAttributes}>";
+				$this->sListEnd = '</dl>';
 				// item html attributes on dt element or dd element ?
-				$this->sHeadingStart = '<DT>';
-				$this->sHeadingEnd   = '</DT><DD>';
-				$this->sItemEnd      = '</DD>';
+				$this->sHeadingStart = '<dt>';
+				$this->sHeadingEnd = '</dt><dd>';
+				$this->sItemEnd = '</dd>';
 				break;
-			case 'H2':
-			case 'H3':
-			case 'H4':
-				$this->sListStart    = '<DIV'.$_listattr.'>';
-				$this->sListEnd      = '</DIV>';
-				$this->sHeadingStart = '<'.$listmode.'>';
-				$this->sHeadingEnd   = '</'.$listmode.'>';
+
+			case 'h2':
+			case 'h3':
+			case 'h4':
+				$this->sListStart = "<div {$_listAttributes}>";
+				$this->sListEnd = '</div>';
+				$this->sHeadingStart = "<{$listMode}>";
+				$this->sHeadingEnd = "</{$listMode}>";
 				break;
+
 			case 'userformat':
-				list($this->sListStart, $this->sItemStart, $this->sItemEnd, $this->sListEnd) = array_pad($listseparators, 4, null);
-				$this->sInline = $inlinetext;
+				list( $this->sListStart, $this->sItemStart, $this->sItemEnd, $this->sListEnd ) =
+					array_pad( $listSeparators, 4, null );
+				$this->sInline = $inlineText;
 				break;
 		}
 	}
-
 }
-?>
