@@ -229,8 +229,8 @@ class Article extends WikiArticle {
 		static::$title = $title;
 
 		$article = new Article( $title, $pageNamespace );
-		$article->mLink = static::getArticleLink( $row, $pageNamespace );
-		$article->mStartChar = static::getFirstChar( $row, $pageTitle );
+		$article->mLink = static::getArticleLinkFromRow( $row, $pageNamespace );
+		$article->mStartChar = static::getFirstCharFromRow( $row, $pageTitle );
 		$article->mID = intval( $row['page_id'] );
 
 		// External link
@@ -244,23 +244,24 @@ class Article extends WikiArticle {
 		}
 
 		// SHOW PAGE_SIZE
-		if ( isset( $row['page_len'] ) ) {
-			$article->mSize = $row['page_len'];
+		$pageSize = static::getPageSizeFromRow( $row );
+		if ( !is_null( $pageSize ) ) {
+			$article->mSize = $pageSize;
 		}
 
-		$initiallySelectedPage = static::getInitiallySelectedPage( $row );
+		$initiallySelectedPage = static::getInitiallySelectedPageFromRow( $row );
 		if ( !empty( $initiallySelectedPage ) ) {
 			$article->mSelTitle = $initiallySelectedPage['title'];
 			$article->mSelNamespace = $initiallySelectedPage['namespace'];
 		}
 
-		$selectedImageTitle = static::getSelectedImageTitle( $row );
+		$selectedImageTitle = static::getSelectedImageTitleFromRow( $row );
 		if ( !is_null( $selectedImageTitle ) ) {
 			$article->mImageSelTitle = $selectedImageTitle;
 		}
 
 		if ( $parameters->getParameter( 'goal' ) != 'categories' ) {
-			$revisionData = static::getRevisionData( $row );
+			$revisionData = static::getRevisionDataFromRow( $row );
 			if ( !empty( $revisionData ) ) {
 				$article->mRevision = $revisionData['id'];
 				$article->mUser = $revisionData['user'];
@@ -286,7 +287,7 @@ class Article extends WikiArticle {
 			}
 
 			// CONTRIBUTION, CONTRIBUTOR
-			$contribution = static::getContributionAndContributor( $row );
+			$contribution = static::getContributionAndContributorFromRow( $row );
 			if ( !empty( $contribution ) ) {
 				$article->mContribution = $contribution['contribution'];
 				$article->mContributor = $contribution['contributor'];
@@ -294,7 +295,7 @@ class Article extends WikiArticle {
 			}
 
 			// USER/AUTHOR(S)
-			$author = static::getAuthor( $row );
+			$author = static::getAuthorFromRow( $row );
 			if ( !empty( $author ) ) {
 				$article->mUserLink = $author['link'];
 				$article->mUser = $author['user'];
@@ -308,7 +309,7 @@ class Article extends WikiArticle {
 			}
 
 			// PARENT HEADING
-			$parentHeading = static::getParentHeadLink( $row );
+			$parentHeading = static::getParentHeadLinkFromRow( $row );
 			if ( !is_null( $parentHeading ) ) {
 				$article->mParentHLink = $parentHeading;
 			}
@@ -329,7 +330,7 @@ class Article extends WikiArticle {
 	 * @return string
 	 * @throws MWException
 	 */
-	private static function getArticleLink( array $row, $pageNamespace ) {
+	private static function getArticleLinkFromRow( array $row, $pageNamespace ) {
 		$titleText = static::getTitleText();
 		$titleTextEscaped = htmlspecialchars( $titleText );
 
@@ -393,7 +394,7 @@ class Article extends WikiArticle {
 	 * @param $pageTitle
 	 * @return string
 	 */
-	private static function getFirstChar( array $row, $pageTitle ) {
+	private static function getFirstCharFromRow( array $row, $pageTitle ) {
 		global $wgContLang;
 
 		if ( isset( $row['sortkey'] ) ) {
@@ -404,13 +405,28 @@ class Article extends WikiArticle {
 	}
 
 	/**
+	 * Returns Page length if 'addpagesize' is true
+	 *
+	 * @param array $row
+	 * @return null|string
+	 */
+	private static function getPageSizeFromRow( array $row ) {
+		$addPageSize = (bool)static::$parameters->getParameter( 'addpagesize' );
+		if ( $addPageSize && isset( $row['page_len'] ) ) {
+			return $row['page_len'];
+		}
+
+		return null;
+	}
+
+	/**
 	 * Returns initially selected page and namespace. 'unknown page' and 0 is 'sel_title' is not set
 	 * Empty array otherwise
 	 *
 	 * @param array $row
 	 * @return array
 	 */
-	private static function getInitiallySelectedPage( array $row ) {
+	private static function getInitiallySelectedPageFromRow( array $row ) {
 		$linksTo = static::$parameters->getParameter( 'linksto' );
 		$linksFrom = static::$parameters->getParameter( 'linksfrom' );
 
@@ -438,7 +454,7 @@ class Article extends WikiArticle {
 	 * @param array $row
 	 * @return mixed|null|string
 	 */
-	private static function getSelectedImageTitle( array $row ) {
+	private static function getSelectedImageTitleFromRow( array $row ) {
 		$imageUsed = static::$parameters->getParameter( 'imageused' );
 
 		if ( is_array( $imageUsed ) && count( $imageUsed ) > 0 ) {
@@ -460,7 +476,7 @@ class Article extends WikiArticle {
 	 * @param array $row
 	 * @return array
 	 */
-	private static function getRevisionData( array $row ) {
+	private static function getRevisionDataFromRow( array $row ) {
 		$lastRevisionBefore = static::$parameters->getParameter( 'lastrevisionbefore' );
 		$allRevisionsBefore = static::$parameters->getParameter( 'allrevisionsbefore' );
 		$firstRevisionSince = static::$parameters->getParameter( 'firstrevisionsince' );
@@ -510,7 +526,7 @@ class Article extends WikiArticle {
 	 * @param array $row
 	 * @return array
 	 */
-	private static function getContributionAndContributor( array $row ) {
+	private static function getContributionAndContributorFromRow( array $row ) {
 		$addContribution = static::$parameters->getParameter( 'addcontribution' );
 
 		if ( $addContribution ) {
@@ -535,7 +551,7 @@ class Article extends WikiArticle {
 	 * @param array $row
 	 * @return array
 	 */
-	private static function getAuthor( array $row ) {
+	private static function getAuthorFromRow( array $row ) {
 		$addUser = static::$parameters->getParameter( 'adduser' );
 		$addAuthor = static::$parameters->getParameter( 'addauthor' );
 		$addLastEditor = static::$parameters->getParameter( 'addlasteditor' );
@@ -586,7 +602,7 @@ class Article extends WikiArticle {
 	 * @param array $row
 	 * @return null|string
 	 */
-	private static function getParentHeadLink( array $row ) {
+	private static function getParentHeadLinkFromRow( array $row ) {
 		$headingMode = static::$parameters->getParameter( 'headingmode' );
 		$orderMethod = static::$parameters->getParameter( 'ordermethod' );
 
