@@ -35,7 +35,7 @@ class Parse {
 	/**
 	 * \DPL\Parameters Object
 	 *
-	 * @var Parameters
+	 * @var \DPL\Parameters
 	 */
 	private $parameters = null;
 
@@ -47,7 +47,7 @@ class Parse {
 	private $logger = null;
 
 	/**
-	 * Array of prequoted table names.
+	 * Array of pre-quoted table names.
 	 *
 	 * @var array
 	 */
@@ -141,10 +141,10 @@ class Parse {
 		$dplStartTime = microtime( true );
 		$this->parser = $parser;
 
-		//Reset headings when being ran more than once in the same page load.
+		// Reset headings when being ran more than once in the same page load.
 		Article::resetHeadings();
 
-		//Check that we are not in an infinite transclusion loop
+		// Check that we are not in an infinite transclusion loop
 		if ( isset( $this->parser->mTemplatePath[$this->parser->mTitle->getPrefixedText()] ) ) {
 			$this->logger->addMessage( DynamicPageListHooks::WARN_TRANSCLUSIONLOOP,
 				$this->parser->mTitle->getPrefixedText() );
@@ -152,10 +152,12 @@ class Parse {
 			return $this->getFullOutput();
 		}
 
-		//Check if DPL shall only be executed from protected pages.
+		// Check if DPL shall only be executed from protected pages.
 		if ( Config::getSetting( 'runFromProtectedPagesOnly' ) === true &&
 		     !$this->parser->mTitle->isProtected( 'edit' ) ) {
-			//Ideally we would like to allow using a DPL query if the query istelf is coded on a template page which is protected. Then there would be no need for the article to be protected.  However, how can one find out from which wiki source an extension has been invoked???
+			// Ideally we would like to allow using a DPL query if the query itself is coded on a
+			// template page which is protected. Then there would be no need for the article to be protected.
+			// However, how can one find out from which wiki source an extension has been invoked???
 			$this->logger->addMessage( DynamicPageListHooks::FATAL_NOTPROTECTED,
 				$this->parser->mTitle->getPrefixedText() );
 
@@ -184,7 +186,7 @@ class Parse {
 		$cleanParameters = $this->prepareUserInput( $input );
 
 		if ( !is_array( $cleanParameters ) ) {
-			//Short circuit for dumb things.
+			// Short circuit for dumb things.
 			$this->logger->addMessage( DynamicPageListHooks::FATAL_NOSELECTION );
 
 			return $this->getFullOutput();
@@ -196,9 +198,10 @@ class Parse {
 
 		foreach ( $cleanParameters as $parameter => $option ) {
 			foreach ( $option as $_option ) {
-				//Parameter functions return true or false.  The full parameter data will be passed into the Query object later.
+				// Parameter functions return true or false.  The full parameter data will be
+				// passed into the Query object later.
 				if ( $this->parameters->$parameter( $_option ) === false ) {
-					//Do not build this into the output just yet.  It will be collected at the end.
+					// Do not build this into the output just yet.  It will be collected at the end.
 					$this->logger->addMessage( DynamicPageListHooks::WARN_WRONGPARAM, $parameter,
 						$_option );
 				}
@@ -209,16 +212,18 @@ class Parse {
 		/* Execute and Exit Only */
 		/*************************/
 		if ( $this->parameters->getParameter( 'execandexit' ) !== null ) {
-			//The keyword "geturlargs" is used to return the Url arguments and do nothing else.
+			// The keyword "geturlargs" is used to return the Url arguments and do nothing else.
 			if ( $this->parameters->getParameter( 'execandexit' ) == 'geturlargs' ) {
 				return null;
 			}
 
-			//In all other cases we return the value of the argument which may contain parser function calls.
+			// In all other cases we return the value of the argument which may contain parser
+			// function calls.
 			return $this->parameters->getParameter( 'execandexit' );
 		}
 
-		//Construct internal keys for TableRow according to the structure of "include".  This will be needed in the output phase.
+		// Construct internal keys for TableRow according to the structure of "include".  This
+		// will be needed in the output phase.
 		if ( $this->parameters->getParameter( 'seclabels' ) !== null ) {
 			$this->parameters->setParameter( 'tablerow',
 				$this->updateTableRowKeys( $this->parameters->getParameter( 'tablerow' ),
@@ -231,7 +236,7 @@ class Parse {
 		$errors = $this->doQueryErrorChecks();
 
 		if ( $errors === false ) {
-			//WHAT HAS HAPPENED OH NOOOOOOOOOOOOO.
+			// WHAT HAS HAPPENED OH NOOOOOOOOOOOOO.
 			return $this->getFullOutput();
 		}
 
@@ -271,7 +276,7 @@ class Parse {
 
 		$this->addOutput( '{{Extension DPL}}' );
 
-		//Preset these to defaults.
+		// Preset these to defaults.
 		$this->setVariable( 'TOTALPAGES', 0 );
 		$this->setVariable( 'PAGES', 0 );
 		$this->setVariable( 'VERSION', DPL_VERSION );
@@ -280,7 +285,7 @@ class Parse {
 		/* Handle No Results */
 		/*********************/
 		if ( $numRows <= 0 || empty( $articles ) ) {
-			//Shortcut out since there is no processing to do.
+			// Shortcut out since there is no processing to do.
 			$this->dbr->freeResult( $result );
 
 			return $this->getFullOutput( 0, false );
@@ -292,14 +297,15 @@ class Parse {
 			$foundRows = $this->query->getFoundRows();
 		}
 
-		//Backward scrolling: If the user specified only titlelt with descending reverse the output order.
+		// Backward scrolling: If the user specified only titlelt with descending reverse the
+		// output order.
 		if ( $this->parameters->getParameter( 'titlelt' ) &&
 		     !$this->parameters->getParameter( 'titlegt' ) &&
 		     $this->parameters->getParameter( 'order' ) == 'descending' ) {
 			$articles = array_reverse( $articles );
 		}
 
-		//Special sort for card suits (Bridge)
+		// Special sort for card suits (Bridge)
 		if ( $this->parameters->getParameter( 'ordersuitsymbols' ) ) {
 			$articles = $this->cardSuitSort( $articles );
 		}
@@ -360,13 +366,15 @@ class Parse {
 		/*******************************/
 		/* Replacement Variables       */
 		/*******************************/
-		//Guaranteed to be an accurate count if SQL_CALC_FOUND_ROWS was used.  Otherwise only accurate if results are less than the SQL LIMIT.
+		// Guaranteed to be an accurate count if SQL_CALC_FOUND_ROWS was used.  Otherwise only
+		// accurate if results are less than the SQL LIMIT.
 		$this->setVariable( 'TOTALPAGES', $foundRows );
 
-		//This could be different than TOTALPAGES.  PAGES represents the total results within the constraints of SQL LIMIT.
+		// This could be different than TOTALPAGES.  PAGES represents the total results within
+		// the constraints of SQL LIMIT.
 		$this->setVariable( 'PAGES', $this->dpl->getRowCount() );
 
-		//Replace %DPLTIME% by execution time and timestamp in header and footer
+		// Replace %DPLTIME% by execution time and timestamp in header and footer
 		$nowTimeStamp = date( 'Y/m/d H:i:s' );
 		$dplElapsedTime = sprintf( '%.3f sec.', microtime( true ) - $dplStartTime );
 		$dplTime = "{$dplElapsedTime} ({$nowTimeStamp})";
@@ -377,7 +385,7 @@ class Parse {
 		$lastNamespaceFound = '';
 		$lastTitleFound = '';
 
-		//Replace %LASTTITLE% / %LASTNAMESPACE% by the last title found in header and footer
+		// Replace %LASTTITLE% / %LASTNAMESPACE% by the last title found in header and footer
 		if ( ( $n = count( $articles ) ) > 0 ) {
 			$firstNamespaceFound = str_replace( ' ', '_', $articles[0]->mTitle->getNamespace() );
 			$firstTitleFound = str_replace( ' ', '_', $articles[0]->mTitle->getText() );
@@ -435,7 +443,7 @@ class Parse {
 		if ( !$skipHeaderFooter ) {
 			$header = '';
 			$footer = '';
-			//Only override header and footers if specified.
+			// Only override header and footers if specified.
 			$_headerType = $this->getHeaderFooterType( 'header', $totalResults );
 
 			if ( $_headerType !== false ) {
@@ -467,7 +475,7 @@ class Parse {
 	 *
 	 * @param string $position Page position to check: 'header' or 'footer'.
 	 * @param int $count Count of pages.
-	 * @return mixed Type to use: 'results', 'oneresult', or 'noresults'.
+	 * @return string|bool Type to use: 'results', 'oneresult', or 'noresults'.
 	 *  False if invalid or none should be used.
 	 */
 	private function getHeaderFooterType( $position, $count ) {
@@ -633,13 +641,14 @@ class Parse {
 	 * @return array|bool Array of raw text parameter => option.
 	 */
 	private function prepareUserInput( $input ) {
-		//We replace double angle brackets with single angle brackets to avoid premature tag expansion in the input.
-		//The ¦ symbol is an alias for |.
-		//The combination '²{' and '}²'will be translated to double curly braces; this allows postponed template execution which is crucial for DPL queries which call other DPL queries.
+		// We replace double angle brackets with single angle brackets to avoid premature tag
+		// expansion in the input. The ¦ symbol is an alias for |.
+		// The combination '²{' and '}²'will be translated to double curly braces; this allows
+		// postponed template execution which is crucial for DPL queries which call other DPL queries.
 		$input =
 			str_replace( [ '«', '»', '¦', '²{', '}²' ], [ '<', '>', '|', '{{', '}}' ], $input );
 
-		//Standard new lines into the standard \n and clean up any hanging new lines.
+		// Standard new lines into the standard \n and clean up any hanging new lines.
 		$input = str_replace( [ "\r\n", "\r" ], "\n", $input );
 		$input = trim( $input, "\n" );
 		$rawParameters = explode( "\n", $input );
@@ -664,7 +673,8 @@ class Parse {
 			$option = trim( $option );
 
 			if ( strpos( $parameter, '<' ) !== false || strpos( $parameter, '>' ) !== false ) {
-				//Having the actual less than and greater than symbols is nasty for programatic look up.  The old parameter is still supported along with the new, but we just fix it here before calling it.
+				// Having the actual less than and greater than symbols is nasty for programmatic
+				// look up.  The old parameter is still supported along with the new, but we just fix it here before calling it.
 				$parameter = str_replace( '<', 'lt', $parameter );
 				$parameter = str_replace( '>', 'gt', $parameter );
 			}
@@ -683,7 +693,7 @@ class Parse {
 				continue;
 			}
 
-			//Ignore parameter settings without argument (except namespace and category).
+			// Ignore parameter settings without argument (except namespace and category).
 			if ( !strlen( $option ) ) {
 				if ( $parameter != 'namespace' && $parameter != 'notnamespace' &&
 				     $parameter != 'category' && $this->parameters->exists( $parameter ) ) {
@@ -746,7 +756,6 @@ class Parse {
 		/**************************/
 		/* Parameter Error Checks */
 		/**************************/
-
 		$totalCategories = 0;
 		if ( is_array( $this->parameters->getParameter( 'category' ) ) ) {
 			foreach ( $this->parameters->getParameter( 'category' ) as $comparisonType =>
@@ -770,7 +779,7 @@ class Parse {
 			}
 		}
 
-		//Too many categories.
+		// Too many categories.
 		if ( $totalCategories > Config::getSetting( 'maxCategoryCount' ) &&
 		     !Config::getSetting( 'allowUnlimitedCategories' ) ) {
 			$this->logger->addMessage( DynamicPageListHooks::FATAL_TOOMANYCATS,
@@ -779,7 +788,7 @@ class Parse {
 			return false;
 		}
 
-		//Not enough categories.(Really?)
+		// Not enough categories.(Really?)
 		if ( $totalCategories < Config::getSetting( 'minCategoryCount' ) ) {
 			$this->logger->addMessage( DynamicPageListHooks::FATAL_TOOFEWCATS,
 				Config::getSetting( 'minCategoryCount' ) );
@@ -794,13 +803,14 @@ class Parse {
 			return false;
 		}
 
-		//ordermethod=sortkey requires ordermethod=category
-		//Delayed to the construction of the SQL query, see near line 2211, gs
-		//if (in_array('sortkey',$aOrderMethods) && ! in_array('category',$aOrderMethods)) $aOrderMethods[] = 'category';
-
+		// ordermethod=sortkey requires ordermethod=category
+		// Delayed to the construction of the SQL query, see near line 2211, gs
+		// if (in_array('sortkey',$aOrderMethods) && ! in_array('category',$aOrderMethods))
+		// $aOrderMethods[] = 'category';
 		$orderMethods = (array)$this->parameters->getParameter( 'ordermethod' );
 
-		//Throw an error in no categories were selected when using category sorting modes or requesting category information.
+		// Throw an error in no categories were selected when using category sorting modes or
+		// requesting category information.
 		if ( $totalCategories == 0 && ( in_array( 'categoryadd', $orderMethods ) ||
 		                                $this->parameters->getParameter( 'addfirstcategorydate' ) ===
 		                                true ) ) {
@@ -809,8 +819,8 @@ class Parse {
 			return false;
 		}
 
-		//No more than one type of date at a time!
-		//@TODO: Can this be fixed to allow all three later after fixing the article class?
+		// No more than one type of date at a time!
+		// @TODO: Can this be fixed to allow all three later after fixing the article class?
 		if ( ( intval( $this->parameters->getParameter( 'addpagetoucheddate' ) ) +
 		       intval( $this->parameters->getParameter( 'addfirstcategorydate' ) ) +
 		       intval( $this->parameters->getParameter( 'addeditdate' ) ) ) > 1 ) {
@@ -848,7 +858,7 @@ class Parse {
 		}
 
 		// addeditdate=true but not (ordermethod=...,firstedit or ordermethod=...,lastedit)
-		//firstedit (resp. lastedit) -> add date of first (resp. last) revision
+		// firstedit (resp. lastedit) -> add date of first (resp. last) revision
 		if ( $this->parameters->getParameter( 'addeditdate' ) &&
 		     !array_intersect( $orderMethods, [ 'firstedit', 'lastedit' ] ) &&
 		     ( $this->parameters->getParameter( 'allrevisionsbefore' ) ||
@@ -862,11 +872,11 @@ class Parse {
 		}
 
 		// adduser=true but not (ordermethod=...,firstedit or ordermethod=...,lastedit)
-		/**
-		 * @todo allow to add user for other order methods.
-		 * The fact is a page may be edited by multiple users. Which user(s) should we show? all? the first or the last one?
-		 * Ideally, we could use values such as 'all', 'first' or 'last' for the adduser parameter.
-		 */
+
+		// @TODO allow to add user for other order methods.
+		// The fact is a page may be edited by multiple users. Which user(s) should we show? all?
+		// the first or the last one?
+		// Ideally, we could use values such as 'all', 'first' or 'last' for the adduser parameter.
 		if ( $this->parameters->getParameter( 'adduser' ) &&
 		     !array_intersect( $orderMethods, [ 'firstedit', 'lastedit' ] ) &&
 		     !$this->parameters->getParameter( 'allrevisionsbefore' ) &&
@@ -887,11 +897,12 @@ class Parse {
 			return false;
 		}
 
-		/**
-		 * If including the Uncategorized, we need the 'dpl_clview': VIEW of the categorylinks table where we have cl_to='' (empty string) for all uncategorized pages. This VIEW must have been created by the administrator of the mediawiki DB at installation. See the documentation.
-		 */
+		// If including the Uncategorized, we need the 'dpl_clview': VIEW of the categorylinks
+		// table where we have cl_to='' (empty string) for all uncategorized pages.
+		// This VIEW must have been created by the administrator of the mediawiki DB at
+		// installation. See the documentation.
 		if ( $this->parameters->getParameter( 'includeuncat' ) ) {
-			//If the view is not there, we can't perform logical operations on the Uncategorized.
+			// If the view is not there, we can't perform logical operations on the Uncategorized.
 			if ( !$this->dbr->tableExists( 'dpl_clview' ) ) {
 				$sql =
 					'CREATE VIEW ' . $this->tableNames['dpl_clview'] .
@@ -906,7 +917,8 @@ class Parse {
 			}
 		}
 
-		//add*** parameters have no effect with 'mode=category' (only namespace/title can be viewed in this mode)
+		// add*** parameters have no effect with 'mode=category'
+		// (only namespace/title can be viewed in this mode)
 		if ( $this->parameters->getParameter( 'mode' ) == 'category' &&
 		     ( $this->parameters->getParameter( 'addcategories' ) ||
 		       $this->parameters->getParameter( 'addeditdate' ) ||
@@ -920,7 +932,7 @@ class Parse {
 			$this->logger->addMessage( DynamicPageListHooks::WARN_CATOUTPUTBUTWRONGPARAMS );
 		}
 
-		//headingmode has effects with ordermethod on multiple components only
+		// headingmode has effects with ordermethod on multiple components only
 		if ( $this->parameters->getParameter( 'headingmode' ) != 'none' &&
 		     count( $orderMethods ) < 2 ) {
 			$this->logger->addMessage( DynamicPageListHooks::WARN_HEADINGBUTSIMPLEORDERMETHOD,
@@ -928,7 +940,7 @@ class Parse {
 			$this->parameters->setParameter( 'headingmode', 'none' );
 		}
 
-		//The 'openreferences' parameter is incompatible with many other options.
+		// The 'openreferences' parameter is incompatible with many other options.
 		if ( $this->parameters->isOpenReferencesConflict() &&
 		     $this->parameters->getParameter( 'openreferences' ) === true ) {
 			$this->logger->addMessage( DynamicPageListHooks::FATAL_OPENREFERENCES );
@@ -942,7 +954,7 @@ class Parse {
 	/**
 	 * Process Query Results
 	 *
-	 * @param ResultWrapper $result Mediawiki Result Object
+	 * @param \Wikimedia\Rdbms\ResultWrapper $result Mediawiki Result Object
 	 * @return array Array of Article objects.
 	 */
 	private function processQueryResults( $result ) {
@@ -955,18 +967,21 @@ class Parse {
 		if ( $randomCount > 0 ) {
 			$nResults = $this->dbr->numRows( $result );
 
-			//mt_srand() seeding was removed due to PHP 5.2.1 and above no longer generating the same sequence for the same seed.
-			//Constrain the total amount of random results to not be greater than the total results.
+			// mt_srand() seeding was removed due to PHP 5.2.1 and above no longer generating the
+			// same sequence for the same seed.
+			// Constrain the total amount of random results to not be greater than the total
+			// results.
 			if ( $randomCount > $nResults ) {
 				$randomCount = $nResults;
 			}
 
-			//This is 50% to 150% faster than the old while (true) version that could keep rechecking the same random key over and over again.
-			//Generate pick numbers for results.
+			// This is 50% to 150% faster than the old while (true) version that could keep
+			// rechecking the same random key over and over again.
+			// Generate pick numbers for results.
 			$pick = range( 1, $nResults );
-			//Shuffle the pick numbers.
+			// Shuffle the pick numbers.
 			shuffle( $pick );
-			//Select pick numbers from the beginning to the maximum of $randomCount.
+			// Select pick numbers from the beginning to the maximum of $randomCount.
 			$pick = array_slice( $pick, 0, $randomCount );
 		}
 
@@ -980,7 +995,7 @@ class Parse {
 		while ( $row = $result->fetchRow() ) {
 			$i ++;
 
-			//In random mode skip articles which were not chosen.
+			// In random mode skip articles which were not chosen.
 			if ( $randomCount > 0 && !in_array( $i, $pick ) ) {
 				continue;
 			}
@@ -993,12 +1008,12 @@ class Parse {
 					$pageNamespace = NS_FILE;
 					$pageTitle = $row['il_to'];
 				} else {
-					//Maybe non-existing title
+					// Maybe non-existing title
 					$pageNamespace = $row['pl_namespace'];
 					$pageTitle = $row['pl_title'];
 				}
 			} else {
-				//Existing PAGE TITLE
+				// Existing PAGE TITLE
 				$pageNamespace = $row['page_namespace'];
 				$pageTitle = $row['page_title'];
 			}
@@ -1012,7 +1027,8 @@ class Parse {
 			$title = Title::makeTitle( $pageNamespace, $pageTitle );
 			$thisTitle = $this->parser->getTitle();
 
-			//Block recursion from happening by seeing if this result row is the page the DPL query was ran from.
+			// Block recursion from happening by seeing if this result row is the page the DPL
+			// query was ran from.
 			if ( $this->parameters->getParameter( 'skipthispage' ) &&
 			     $thisTitle->equals( $title ) ) {
 				continue;
@@ -1104,10 +1120,11 @@ class Parse {
 	}
 
 	/**
-	 * This function uses the Variables extension to provide navigation aids such as DPL_firstTitle, DPL_lastTitle, or DPL_findTitle.  These variables can be accessed as {{#var:DPL_firstTitle}} if Extension:Variables is installed.
+	 * This function uses the Variables extension to provide navigation aids such as DPL_firstTitle, DPL_lastTitle, or DPL_findTitle.
+	 * These variables can be accessed as {{#var:DPL_firstTitle}} if Extension:Variables is installed.
 	 *
 	 * @param array $scrollVariables Array of scroll variables with the key as the variable name
-	 * and the value as the value.  Non-arrays will be casted to arrays.
+	 *  and the value as the value.  Non-arrays will be casted to arrays.
 	 * @return void
 	 */
 	private function defineScrollVariables( $scrollVariables ) {
@@ -1149,7 +1166,7 @@ class Parse {
 			array_merge( $eliminate, (array)$this->parameters->getParameter( 'eliminate' ) );
 
 		if ( $isParserTag === true ) {
-			//In tag mode 'eliminate' is the same as 'reset' for templates, categories, and images.
+			// In tag mode 'eliminate' is the same as 'reset' for templates, categories, and images.
 			if ( isset( $eliminate['templates'] ) && $eliminate['templates'] ) {
 				$reset['templates'] = true;
 				$eliminate['templates'] = false;
@@ -1183,7 +1200,7 @@ class Parse {
 				DynamicPageListHooks::$createdLinks['resetLinks'] = true;
 			}
 
-			//Register a hook to reset links which were produced during parsing DPL output.
+			// Register a hook to reset links which were produced during parsing DPL output.
 			if ( !isset( $wgHooks['ParserAfterTidy'] ) ||
 			     !is_array( $wgHooks['ParserAfterTidy'] ) ||
 			     !in_array( 'DynamicPageListHooks::endReset', $wgHooks['ParserAfterTidy'] ) ) {
@@ -1192,7 +1209,7 @@ class Parse {
 		}
 
 		if ( array_sum( $eliminate ) ) {
-			//Register a hook to reset links which were produced during parsing DPL output
+			// Register a hook to reset links which were produced during parsing DPL output
 			if ( !isset( $wgHooks['ParserAfterTidy'] ) ||
 			     !is_array( $wgHooks['ParserAfterTidy'] ) ||
 			     !in_array( 'DynamicPageListHooks::endEliminate', $wgHooks['ParserAfterTidy'] ) ) {
@@ -1200,7 +1217,10 @@ class Parse {
 			}
 
 			if ( isset( $eliminate['links'] ) && $eliminate['links'] ) {
-				//Trigger the mediawiki parser to find links, images, categories etc. which are contained in the DPL output.  This allows us to remove these links from the link list later.  If the article containing the DPL statement itself uses one of these links they will be thrown away!
+				// Trigger the mediawiki parser to find links, images, categories etc. which are
+				// contained in the DPL output.
+				// This allows us to remove these links from the link list later.
+				// If the article containing the DPL statement itself uses one of these links they will be thrown away!
 				DynamicPageListHooks::$createdLinks[0] = [];
 
 				foreach ( $parserOutput->getLinks() as $nsp => $link ) {

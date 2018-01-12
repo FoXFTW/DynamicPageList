@@ -98,7 +98,7 @@ class LST {
 			$text = $parser->fetchTemplate( $title );
 		}
 
-		//if article doesn't exist, return a red link.
+		// if article doesn't exist, return a red link.
 		if ( $text == false ) {
 			$text = "[[" . $title->getPrefixedText() . "]]";
 
@@ -171,7 +171,7 @@ class LST {
 		}
 
 		if ( self::open( $parser, $part1 ) ) {
-			//Handle recursion here, so we can break cycles.
+			// Handle recursion here, so we can break cycles.
 			if ( $recursionCheck == false ) {
 				$text = $parser->preprocess( $text, $parser->mTitle, $parser->mOptions );
 				self::close( $parser, $part1 );
@@ -363,7 +363,7 @@ class LST {
 	 * @param string $page
 	 * @param string $sec
 	 * @param string $to
-	 * @param $sectionHeading
+	 * @param array $sectionHeading
 	 * @param bool $recursionCheck
 	 * @param int $maxLength
 	 * @param string $link
@@ -395,7 +395,7 @@ class LST {
 	 *
 	 * @param \Parser $parser
 	 * @param string $page
-	 * @param Title $title
+	 * @param \Title $title
 	 * @param string $text
 	 * @param string $sec
 	 * @param string $to
@@ -408,7 +408,7 @@ class LST {
 	 * @return array
 	 */
 	public static function extractHeadingFromText(
-		Parser $parser, $page, $title, $text, $sec = '', $to = '', &$sectionHeading,
+		Parser $parser, $page, Title $title, $text, $sec = '', $to = '', &$sectionHeading,
 		$recursionCheck = true, $maxLength = - 1, $cLink = 'default', $trim = false,
 		$skipPattern = []
 	) {
@@ -438,8 +438,8 @@ class LST {
 		}
 
 		do {
-			//Generate a regex to match the === classical heading section(s) === we're
-			//interested in.
+			// Generate a regex to match the === classical heading section(s) === we're
+			// interested in.
 			$headLine = '';
 			if ( $sec == '' ) {
 				$begin_off = 0;
@@ -498,7 +498,7 @@ class LST {
 			}
 
 			if ( $to != '' ) {
-				//if $to is supplied, try and match it.  If we don't match, just ignore it.
+				// if $to is supplied, try and match it.  If we don't match, just ignore it.
 				if ( $isPlain ) {
 					$pat = '^(={1,6})\s*' . preg_quote( $to, '/' ) . '\s*\1\s*$';
 				} else {
@@ -552,8 +552,8 @@ class LST {
 
 			if ( isset( $m[0][0] ) ) {
 				$sectionHeading[$n] = $headLine;
-				//$sectionHeading[$n]=preg_replace("/^=+\s*/","",$m[0][0]);
-				//$sectionHeading[$n]=preg_replace("/\s*=+\s*$/","",$sectionHeading[$n]);
+				// $sectionHeading[$n]=preg_replace("/^=+\s*/","",$m[0][0]);
+				// $sectionHeading[$n]=preg_replace("/\s*=+\s*$/","",$sectionHeading[$n]);
 			} else {
 				// $sectionHeading[$n] = '';
 				$sectionHeading[0] = $headLine;
@@ -643,11 +643,11 @@ class LST {
 		$date = $article->myDate;
 		$user = $article->mUserLink;
 		$title = Title::newFromText( $page );
-		/* get text and throw away html comments */
+		// get text and throw away html comments
 		$text = preg_replace( '/<!--.*?-->/s', '', $parser->fetchTemplate( $title ) );
 
 		if ( $template1 != '' && $template1[0] == '#' ) {
-			// --------------------------------------------- looking for a parser function call
+			// looking for a parser function call
 			$template1 = substr( $template1, 1 );
 			$template2 = substr( $template2, 1 );
 			$defaultTemplate = substr( $defaultTemplate, 1 );
@@ -663,7 +663,7 @@ class LST {
 				}
 			}
 		} elseif ( $template1 != '' && $template1[0] == '~' ) {
-			// --------------------------------------------- looking for an xml-tag extension call
+			// looking for an xml-tag extension call
 			$template1 = substr( $template1, 1 );
 			$template2 = substr( $template2, 1 );
 			$defaultTemplate = substr( $defaultTemplate, 1 );
@@ -677,7 +677,7 @@ class LST {
 				$tCalls[$i] = preg_replace( '/\<\s*\/' . $template1 . '\s*\>.*/is', '}}', $tCall );
 			}
 		} else {
-			// --------------------------------------------- looking for template call
+			// looking for template call
 			// we accept plain text as a template name, space or underscore are the same
 			// the localized name for "Template:" may preceed the template name
 			// the name may start with a different namespace for the surrogate template, followed by ::

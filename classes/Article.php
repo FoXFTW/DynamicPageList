@@ -185,8 +185,8 @@ class Article {
 	/**
 	 * Main Constructor
 	 *
-	 * @param string Title
-	 * @param int Namespace
+	 * @param string $title Title
+	 * @param int $namespace Namespace
 	 * @return void
 	 */
 	public function __construct( $title, $namespace ) {
@@ -197,11 +197,11 @@ class Article {
 	/**
 	 * Initialize a new instance from a database row.
 	 *
-	 * @param array Database Row
-	 * @param \DPL\Parameters \DPL\Parameters Object
-	 * @param \Title Mediawiki Title Object
-	 * @param int Page Namespace ID
-	 * @param string Page Title as Selected from Query
+	 * @param array $row Database Row
+	 * @param \DPL\Parameters $parameters \DPL\Parameters Object
+	 * @param \Title $title Mediawiki Title Object
+	 * @param int $pageNamespace Page Namespace ID
+	 * @param string $pageTitle Page Title as Selected from Query
 	 * @return \DPL\Article \DPL\Article Object
 	 */
 	static public function newFromRow(
@@ -222,7 +222,7 @@ class Article {
 					$parameters->getParameter( 'replaceintitle' )[1], $titleText );
 		}
 
-		//Chop off title if longer than the 'titlemaxlen' parameter.
+		// Chop off title if longer than the 'titlemaxlen' parameter.
 		if ( $parameters->getParameter( 'titlemaxlen' ) !== null &&
 		     strlen( $titleText ) > $parameters->getParameter( 'titlemaxlen' ) ) {
 			$titleText =
@@ -252,22 +252,22 @@ class Article {
 
 		$article->mID = intval( $row['page_id'] );
 
-		//External link
+		// External link
 		if ( isset( $row['el_to'] ) ) {
 			$article->mExternalLink = $row['el_to'];
 		}
 
-		//SHOW PAGE_COUNTER
+		// SHOW PAGE_COUNTER
 		if ( isset( $row['page_counter'] ) ) {
 			$article->mCounter = $row['page_counter'];
 		}
 
-		//SHOW PAGE_SIZE
+		// SHOW PAGE_SIZE
 		if ( isset( $row['page_len'] ) ) {
 			$article->mSize = $row['page_len'];
 		}
 
-		//STORE initially selected PAGE
+		// STORE initially selected PAGE
 		if ( count( $parameters->getParameter( 'linksto' ) ) ||
 		     count( $parameters->getParameter( 'linksfrom' ) ) ) {
 			if ( !isset( $row['sel_title'] ) ) {
@@ -279,7 +279,7 @@ class Article {
 			}
 		}
 
-		//STORE selected image
+		// STORE selected image
 		if ( count( $parameters->getParameter( 'imageused' ) ) > 0 ) {
 			if ( !isset( $row['image_sel_title'] ) ) {
 				$article->mImageSelTitle = 'unknown image';
@@ -289,7 +289,7 @@ class Article {
 		}
 
 		if ( $parameters->getParameter( 'goal' ) != 'categories' ) {
-			//REVISION SPECIFIED
+			// REVISION SPECIFIED
 			if ( $parameters->getParameter( 'lastrevisionbefore' ) ||
 			     $parameters->getParameter( 'allrevisionsbefore' ) ||
 			     $parameters->getParameter( 'firstrevisionsince' ) ||
@@ -300,7 +300,7 @@ class Article {
 				$article->mComment = $row['rev_comment'];
 			}
 
-			//SHOW "PAGE_TOUCHED" DATE, "FIRSTCATEGORYDATE" OR (FIRST/LAST) EDIT DATE
+			// SHOW "PAGE_TOUCHED" DATE, "FIRSTCATEGORYDATE" OR (FIRST/LAST) EDIT DATE
 			if ( $parameters->getParameter( 'addpagetoucheddate' ) ) {
 				$article->mDate = $row['page_touched'];
 			} elseif ( $parameters->getParameter( 'addfirstcategorydate' ) ) {
@@ -313,13 +313,13 @@ class Article {
 				$article->mDate = $row['page_touched'];
 			}
 
-			//Time zone adjustment
+			// Time zone adjustment
 			if ( $article->mDate ) {
 				$article->mDate = $wgLang->userAdjust( $article->mDate );
 			}
 
 			if ( $article->mDate && $parameters->getParameter( 'userdateformat' ) ) {
-				//Apply the userdateformat
+				// Apply the userdateformat
 				$article->myDate =
 					gmdate( $parameters->getParameter( 'userdateformat' ),
 						wfTimeStamp( TS_UNIX, $article->mDate ) );
@@ -333,7 +333,7 @@ class Article {
 					substr( '*****************', 0, round( log( $row['contribution'] ) ) );
 			}
 
-			//USER/AUTHOR(S)
+			// USER/AUTHOR(S)
 			// because we are going to do a recursive parse at the end of the output phase
 			// we have to generate wiki syntax for linking to a user´s homepage
 			if ( $parameters->getParameter( 'adduser' ) ||
@@ -344,7 +344,7 @@ class Article {
 				$article->mUser = $row['rev_user_text'];
 			}
 
-			//CATEGORY LINKS FROM CURRENT PAGE
+			// CATEGORY LINKS FROM CURRENT PAGE
 			if ( $parameters->getParameter( 'addcategories' ) && ( $row['cats'] ) ) {
 				$artCatNames = explode( ' | ', $row['cats'] );
 				foreach ( $artCatNames as $artCatName ) {

@@ -115,7 +115,8 @@ class Parameters extends ParametersData {
 			}
 		}
 
-		//Subvert to the real function if it exists.  This keeps code elsewhere clean from needed to check if it exists first.
+		// Subvert to the real function if it exists.
+		// This keeps code elsewhere clean from needed to check if it exists first.
 		$function = "_" . $parameter;
 		$this->parametersProcessed[$parameter] = true;
 
@@ -126,11 +127,12 @@ class Parameters extends ParametersData {
 		$option = $arguments[0];
 		$parameter = strtolower( $parameter );
 
-		//Assume by default that these simple parameter options should not failed, but if they do we will set $success to false below.
+		// Assume by default that these simple parameter options should not failed,
+		// but if they do we will set $success to false below.
 		$success = true;
 
 		if ( $parameterData !== false ) {
-			//If a parameter specifies options then enforce them.
+			// If a parameter specifies options then enforce them.
 			if ( array_key_exists( 'values', $parameterData ) &&
 			     is_array( $parameterData['values'] ) === true &&
 			     !in_array( strtolower( $option ), $parameterData['values'] ) ) {
@@ -144,13 +146,13 @@ class Parameters extends ParametersData {
 				}
 			}
 
-			//Strip <html> tag.
+			// Strip <html> tag.
 			if ( array_key_exists( 'strip_html', $parameterData ) &&
 			     $parameterData['strip_html'] === true ) {
 				$option = $this->stripHtmlTags( $option );
 			}
 
-			//Simple integer intval().
+			// Simple integer intval().
 			if ( array_key_exists( 'integer', $parameterData ) &&
 			     $parameterData['integer'] === true ) {
 				if ( !is_numeric( $option ) ) {
@@ -164,7 +166,7 @@ class Parameters extends ParametersData {
 				}
 			}
 
-			//Booleans
+			// Booleans
 			if ( array_key_exists( 'bool', $parameterData ) && $parameterData['bool'] === true ) {
 				$option = $this->filterBoolean( $option );
 
@@ -173,7 +175,7 @@ class Parameters extends ParametersData {
 				}
 			}
 
-			//Timestamps
+			// Timestamps
 			if ( array_key_exists( 'timestamp', $parameterData ) &&
 			     $parameterData['timestamp'] === true ) {
 				$option = strtolower( $option );
@@ -199,7 +201,7 @@ class Parameters extends ParametersData {
 				}
 			}
 
-			//List of Pages
+			// List of Pages
 			if ( array_key_exists( 'page_name_list', $parameterData ) &&
 			     $parameterData['page_name_list'] === true ) {
 				$pageGroups = $this->getParameter( $parameter );
@@ -219,7 +221,7 @@ class Parameters extends ParametersData {
 				}
 			}
 
-			//Regex Pattern Matching
+			// Regex Pattern Matching
 			if ( array_key_exists( 'pattern', $parameterData ) ) {
 				if ( preg_match( $parameterData['pattern'], $option, $matches ) ) {
 					//Nuke the total pattern match off the beginning of the array.
@@ -230,23 +232,23 @@ class Parameters extends ParametersData {
 				}
 			}
 
-			//Database Key Formatting
+			// Database Key Formatting
 			if ( array_key_exists( 'db_format', $parameterData ) &&
 			     $parameterData['db_format'] === true ) {
 				$option = str_replace( ' ', '_', $option );
 			}
 
-			//If none of the above checks marked this as a failure then set it.
+			// If none of the above checks marked this as a failure then set it.
 			if ( $success === true ) {
 				$this->setParameter( $parameter, $option );
 
-				//Set that criteria was found for a selection.
+				// Set that criteria was found for a selection.
 				if ( array_key_exists( 'set_criteria_found', $parameterData ) &&
 				     $parameterData['set_criteria_found'] === true ) {
 					$this->setSelectionCriteriaFound( true );
 				}
 
-				//Set open references conflict possibility.
+				// Set open references conflict possibility.
 				if ( array_key_exists( 'open_ref_conflict', $parameterData ) &&
 				     $parameterData['open_ref_conflict'] === true ) {
 					$this->setOpenReferencesConflict( true );
@@ -303,7 +305,8 @@ class Parameters extends ParametersData {
 
 		foreach ( $pages as $page ) {
 			$page = trim( $page );
-			//This was fixed from the original code, but I am not sure what its intended purpose was.
+			// This was fixed from the original code,
+			// but I am not sure what its intended purpose was.
 			$page = rtrim( $page, '\\' );
 
 			if ( empty( $page ) ) {
@@ -369,8 +372,8 @@ class Parameters extends ParametersData {
 			throw new MWException( __METHOD__ . ': A non-array was passed.' );
 		}
 
-		//'category' to get category headings first for ordermethod.
-		//'include'/'includepage' to make sure section labels are ready for 'table'.
+		// 'category' to get category headings first for ordermethod.
+		// 'include'/'includepage' to make sure section labels are ready for 'table'.
 		$priority = [
 			'distinct' => 1,
 			'openreferences' => 2,
@@ -452,7 +455,8 @@ class Parameters extends ParametersData {
 			$option = ltrim( $option, '-' );
 		}
 
-		//We expand html entities because they contain an '& 'which would be interpreted as an AND condition
+		// We expand html entities because they contain an '& 'which would be interpreted as an
+		// AND condition
 		$option = html_entity_decode( $option, ENT_QUOTES );
 
 		if ( strpos( $option, '|' ) !== false ) {
@@ -485,7 +489,8 @@ class Parameters extends ParametersData {
 						$title = Title::newFromText( $subCategory );
 
 						if ( !is_null( $title ) ) {
-							//The * helper is just like listing "Category1|SubCategory1".  This gets hard coded here for this purpose.
+							// The * helper is just like listing "Category1|SubCategory1".  This
+							// gets hard coded here for this purpose.
 							$categories['OR'][] = $title->getDbKey();
 						}
 					}
@@ -502,7 +507,7 @@ class Parameters extends ParametersData {
 		if ( !empty( $categories ) ) {
 			$data = $this->getParameter( 'category' );
 
-			//Do a bunch of data integrity checks to avoid E_NOTICE.
+			// Do a bunch of data integrity checks to avoid E_NOTICE.
 			if ( !is_array( $data ) ) {
 				$data = [];
 			}
@@ -555,7 +560,7 @@ class Parameters extends ParametersData {
 		}
 
 		$data = $this->getParameter( 'category' );
-		//REGEXP input only supports AND operator.
+		// REGEXP input only supports AND operator.
 		$data['REGEXP']['AND'][] =
 			[ $option ]; //Wrapped in an array since the category Query handler expects an array.
 		$this->setParameter( 'category', $data );
@@ -736,7 +741,7 @@ class Parameters extends ParametersData {
 			$namespaceId = $wgContLang->getNsIndex( $parameter );
 
 			if ( $namespaceId === false ) {
-				//Let the user know this namespace is not allowed or does not exist.
+				// Let the user know this namespace is not allowed or does not exist.
 				return false;
 			}
 
@@ -763,7 +768,7 @@ class Parameters extends ParametersData {
 			return false;
 		}
 
-		//Force 'ordermethod' back to none.
+		// Force 'ordermethod' back to none.
 		$this->setParameter( 'ordermethod', [ 'none' ] );
 		$this->setParameter( 'openreferences', $option );
 
@@ -803,7 +808,8 @@ class Parameters extends ParametersData {
 	 */
 	public function _mode( $option ) {
 		if ( in_array( $option, $this->getData( 'mode' )['values'] ) ) {
-			//'none' mode is implemented as a specific submode of 'inline' with <br/> as inline text
+			// 'none' mode is implemented as a specific submode of 'inline' with <br/> as inline
+			// text
 			if ( $option == 'none' ) {
 				$this->setParameter( 'mode', 'inline' );
 				$this->setParameter( 'inlinetext', '<br/>' );
@@ -875,11 +881,12 @@ class Parameters extends ParametersData {
 	 * @return bool Success
 	 */
 	public function _format( $option ) {
-		//Parsing of wikitext will happen at the end of the output phase.  Replace '\n' in the input by linefeed because wiki syntax depends on linefeeds.
+		// Parsing of wikitext will happen at the end of the output phase.  Replace '\n' in the
+		// input by linefeed because wiki syntax depends on linefeeds.
 		$option = $this->stripHtmlTags( $option );
 		$option = Parse::replaceNewLines( $option );
 		$this->setParameter( 'listseparators', explode( ',', $option, 4 ) );
-		//Set the 'mode' parameter to userformat automatically.
+		// Set the 'mode' parameter to userformat automatically.
 		$this->setParameter( 'mode', 'userformat' );
 		$this->setParameter( 'inlinetext', '' );
 
@@ -1025,11 +1032,12 @@ class Parameters extends ParametersData {
 		$option = $this->filterBoolean( $option );
 		$this->setParameter( 'scroll', $option );
 
-		//If scrolling is active we adjust the values for certain other parameters based on URL arguments
+		// If scrolling is active we adjust the values for certain other parameters based on URL
+		// arguments
 		if ( $option === true ) {
 			global $wgRequest;
 
-			//The 'findTitle' option has argument over the 'fromTitle' argument.
+			// The 'findTitle' option has argument over the 'fromTitle' argument.
 			$titleGt = $wgRequest->getVal( 'DPL_findTitle', '' );
 
 			if ( !empty( $titleGt ) ) {
@@ -1041,19 +1049,21 @@ class Parameters extends ParametersData {
 
 			$this->setParameter( 'titlegt', str_replace( ' ', '_', $titleGt ) );
 
-			//Lets get the 'toTitle' argument.
+			// Lets get the 'toTitle' argument.
 			$titleLt = $wgRequest->getVal( 'DPL_toTitle', '' );
 			$titleLt = ucfirst( $titleLt );
 			$this->setParameter( 'titlelt', str_replace( ' ', '_', $titleLt ) );
 
-			//Make sure the 'scrollDir' arugment is captured.  This is mainly used for the Variables extension and in the header/footer replacements.
+			// Make sure the 'scrollDir' arugment is captured.  This is mainly used for the
+			// Variables extension and in the header/footer replacements.
 			$this->setParameter( 'scrolldir', $wgRequest->getVal( 'DPL_scrollDir', '' ) );
 
-			//Also set count limit from URL if not otherwise set.
+			// Also set count limit from URL if not otherwise set.
 			$this->_count( $wgRequest->getInt( 'DPL_count' ) );
 		}
 
-		//We do not return false since they could have just left it out.  Who knows why they put the parameter in the list in the first place.
+		// We do not return false since they could have just left it out.  Who knows why they put
+		// the parameter in the list in the first place.
 		return true;
 	}
 
@@ -1081,7 +1091,7 @@ class Parameters extends ParametersData {
 	 * @return bool Success
 	 */
 	public function _replaceintitle( $option ) {
-		//We offer a possibility to replace some part of the title
+		// We offer a possibility to replace some part of the title
 		$replaceInTitle = explode( ',', $option, 2 );
 
 		if ( isset( $replaceInTitle[1] ) ) {
@@ -1179,13 +1189,13 @@ class Parameters extends ParametersData {
 	 * @return bool Success
 	 */
 	public function _includenotmatch( $option ) {
-		$regexes = explode( ',', $option );
+		$regexArray = explode( ',', $option );
 
-		if ( !$this->isRegexValid( $regexes ) ) {
+		if ( !$this->isRegexValid( $regexArray ) ) {
 			return false;
 		}
 
-		$this->setParameter( 'seclabelsnotmatch', $regexes );
+		$this->setParameter( 'seclabelsnotmatch', $regexArray );
 
 		return true;
 	}
@@ -1197,14 +1207,14 @@ class Parameters extends ParametersData {
 	 * @return bool Success
 	 */
 	public function _includenotmatchparsed( $option ) {
-		$regexes = explode( ',', $option );
+		$regexArray = explode( ',', $option );
 
-		if ( !$this->isRegexValid( $regexes ) ) {
+		if ( !$this->isRegexValid( $regexArray ) ) {
 			return false;
 		}
 
 		$this->setParameter( 'incparsed', true );
-		$this->setParameter( 'seclabelsnotmatch', $regexes );
+		$this->setParameter( 'seclabelsnotmatch', $regexArray );
 
 		return true;
 	}
@@ -1216,7 +1226,7 @@ class Parameters extends ParametersData {
 	 * @return bool Success
 	 */
 	public function _secseparators( $option ) {
-		//We replace '\n' by newline to support wiki syntax within the section separators
+		// We replace '\n' by newline to support wiki syntax within the section separators
 		$this->setParameter( 'secseparators', explode( ',', Parse::replaceNewLines( $option ) ) );
 
 		return true;
@@ -1229,7 +1239,7 @@ class Parameters extends ParametersData {
 	 * @return bool Success
 	 */
 	public function _multisecseparators( $option ) {
-		//We replace '\n' by newline to support wiki syntax within the section separators
+		// We replace '\n' by newline to support wiki syntax within the section separators
 		$this->setParameter( 'multisecseparators',
 			explode( ',', Parse::replaceNewLines( $option ) ) );
 
@@ -1275,7 +1285,7 @@ class Parameters extends ParametersData {
 		}
 
 		$listSeparators[3] = "\n|}";
-		//Overwrite 'listseparators'.
+		// Overwrite 'listseparators'.
 		$this->setParameter( 'listseparators', $listSeparators );
 
 		$sectionLabels = $this->getParameter( 'seclabels' );
@@ -1303,7 +1313,7 @@ class Parameters extends ParametersData {
 			}
 		}
 
-		//Overwrite 'secseparators' and 'multisecseparators'.
+		// Overwrite 'secseparators' and 'multisecseparators'.
 		$this->setParameter( 'secseparators', $sectionSeparators );
 		$this->setParameter( 'multisecseparators', $multiSectionSeparators );
 
@@ -1338,7 +1348,8 @@ class Parameters extends ParametersData {
 	 * @return bool Success
 	 */
 	public function _allowcachedresults( $option ) {
-		//If execAndExit was previously set (i.e. if it is not empty) we will ignore all cache settings which are placed AFTER the execandexit statement thus we make sure that the cache will only become invalid if the query is really executed.
+		// If execAndExit was previously set (i.e. if it is not empty) we will ignore all cache
+		// settings which are placed AFTER the execandexit statement thus we make sure that the cache will only become invalid if the query is really executed.
 		if ( $this->getParameter( 'execandexit' ) === null ) {
 			if ( $option == 'yes+warn' ) {
 				$this->setParameter( 'allowcachedresults', true );

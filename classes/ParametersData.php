@@ -1198,7 +1198,6 @@ class ParametersData {
 	/**
 	 * Returns all parameters for the current richness level or limited to the optional maximum richness.
 	 *
-
 	 * @param int $level [Optional] Maximum richness level
 	 * @return array The functional richness parameters list.
 	 */
@@ -1221,9 +1220,8 @@ class ParametersData {
 	/**
 	 * Return the default value for the parameter.
 	 *
-
 	 * @param string $parameter Parameter Name
-	 * @return mixed
+	 * @return bool
 	 * @throws \MWException
 	 */
 	public function getDefault( $parameter ) {
@@ -1232,7 +1230,7 @@ class ParametersData {
 				return (bool)$this->data[$parameter]['default'];
 			}
 
-			return null;
+			return false;
 		}
 
 		throw new MWException( __METHOD__ .
@@ -1242,9 +1240,8 @@ class ParametersData {
 	/**
 	 * Return the acceptable values for the parameter.
 	 *
-
 	 * @param string $parameter Parameter Name
-	 * @return mixed Array of allowed values or false that the parameter allows any.
+	 * @return bool Array of allowed values or false that the parameter allows any.
 	 * @throws \MWException
 	 */
 	public function getValues( $parameter ) {
@@ -1263,7 +1260,6 @@ class ParametersData {
 	/**
 	 * Does the parameter set that criteria for selection was found?
 	 *
-
 	 * @param string $parameter Parameter Name
 	 * @return bool
 	 * @throws \MWException
@@ -1284,7 +1280,6 @@ class ParametersData {
 	/**
 	 * Does the parameter cause an open reference conflict?
 	 *
-
 	 * @param string $parameter Parameter Name
 	 * @return bool
 	 * @throws \MWException
@@ -1305,7 +1300,6 @@ class ParametersData {
 	/**
 	 * Should this parameter preserve the case of the user supplied input?
 	 *
-
 	 * @param string $parameter Parameter Name
 	 * @return bool
 	 * @throws \MWException
@@ -1326,7 +1320,6 @@ class ParametersData {
 	/**
 	 * Does this parameter take a list of page names?
 	 *
-
 	 * @param string $parameter Parameter Name
 	 * @return bool
 	 * @throws \MWException

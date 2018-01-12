@@ -11,10 +11,10 @@
 
 namespace DPL;
 
+use DateInterval;
+use DateTime;
 use Exception;
 use MWException;
-use DateTime;
-use DateInterval;
 
 class Query {
 	/**
@@ -196,7 +196,7 @@ class Query {
 		$dbr = wfGetDB( DB_SLAVE );
 
 		if ( $depth > 2 ) {
-			//Hard constrain depth because lots of recursion is bad.
+			// Hard constrain depth because lots of recursion is bad.
 			$depth = 2;
 		}
 
@@ -232,7 +232,7 @@ class Query {
 	 * Start a query build.
 	 *
 	 * @param bool $calcRows Calculate Found Rows
-	 * @return \ResultWrapper|bool Mediawiki Result Object or False
+	 * @return \Wikimedia\Rdbms\ResultWrapper Mediawiki Result Object or False
 	 * @throws \MWException
 	 */
 	public function buildAndSelect( $calcRows = false ) {
@@ -244,7 +244,8 @@ class Query {
 
 		foreach ( $parameters as $parameter => $option ) {
 			$function = "_" . $parameter;
-			//Some parameters do not modifiy the query so we check if the function to modify the query exists first.
+			// Some parameters do not modifiy the query so we check if the function to modify the
+			// query exists first.
 			$success = true;
 
 			if ( method_exists( $this, $function ) ) {
@@ -261,7 +262,7 @@ class Query {
 		}
 
 		if ( !$this->parameters->getParameter( 'openreferences' ) ) {
-			//Add things that are always part of the query.
+			// Add things that are always part of the query.
 			$this->addTable( 'page', $this->tableNames['page'] );
 			$this->addSelect( [
 				'page_namespace' => $this->tableNames['page'] . '.page_namespace',
@@ -270,7 +271,7 @@ class Query {
 			] );
 		}
 
-		//Always add nonincludeable namespaces.
+		// Always add nonincludeable namespaces.
 		if ( is_array( $wgNonincludableNamespaces ) && count( $wgNonincludableNamespaces ) ) {
 			$this->addNotWhere( [
 				$this->tableNames['page'] . '.page_namespace' => $wgNonincludableNamespaces,
@@ -289,12 +290,14 @@ class Query {
 
 		if ( $this->parameters->getParameter( 'openreferences' ) ) {
 			if ( count( $this->parameters->getParameter( 'imagecontainer' ) ) > 0 ) {
-				//$sSqlSelectFrom = $sSqlCl_to.'ic.il_to, '.$sSqlSelPage."ic.il_to AS sortkey".' FROM '.$this->tableNames['imagelinks'].' AS ic';
+				// $sSqlSelectFrom = $sSqlCl_to.'ic.il_to, '.$sSqlSelPage."ic.il_to AS sortkey".'
+				// FROM '.$this->tableNames['imagelinks'].' AS ic';
 				$tables = [
 					'ic' => 'imagelinks',
 				];
 			} else {
-				//$sSqlSelectFrom = "SELECT $sSqlCalcFoundRows $sSqlDistinct ".$sSqlCl_to.'pl_namespace, pl_title'.$sSqlSelPage.$sSqlSortkey.' FROM '.$this->tableNames['pagelinks'];
+				// $sSqlSelectFrom = "SELECT $sSqlCalcFoundRows $sSqlDistinct ".$sSqlCl_to
+				//.'pl_namespace, pl_title'.$sSqlSelPage.$sSqlSortkey.' FROM '.$this->tableNames['pagelinks'];
 				$this->addSelect( [
 					'pl_namespace',
 					'pl_title',
@@ -312,6 +315,7 @@ class Query {
 
 			if ( count( $this->orderBy ) ) {
 				$options['ORDER BY'] = $this->orderBy;
+
 				foreach ( $options['ORDER BY'] as $key => $value ) {
 					$options['ORDER BY'][$key] .= " " . $this->direction;
 				}
@@ -427,18 +431,20 @@ class Query {
 		foreach ( $fields as $alias => $field ) {
 			if ( !is_numeric( $alias ) && array_key_exists( $alias, $this->select ) &&
 			     $this->select[$alias] != $field ) {
-				//In case of a code bug that is overwriting an existing field alias throw an exception.
+				// In case of a code bug that is overwriting an existing field alias throw an
+				// exception.
 
 				throw new MWException( __METHOD__ .
 				                       ": Attempted to overwrite existing field alias `{$this->select[$alias]}` AS `{$alias}` with `{$field}` AS `{$alias}`." );
 			}
 
-			//String alias and does not exist already.
+			// String alias and does not exist already.
 			if ( !is_numeric( $alias ) && !array_key_exists( $alias, $this->select ) ) {
 				$this->select[$alias] = $field;
 			}
 
-			//Speed up by not using in_array() or array_key_exists().  Toss the field names into their own array as keys => true to exploit a speedy look up with isset().
+			// Speed up by not using in_array() or array_key_exists().  Toss the field names into
+			// their own array as keys => true to exploit a speedy look up with isset().
 			if ( is_numeric( $alias ) && !isset( $this->selectedFields[$field] ) ) {
 				$this->select[] = $field;
 				$this->selectedFields[$field] = true;
@@ -495,12 +501,12 @@ class Query {
 	/**
 	 * Set SQL for 'addauthor' parameter.
 	 *
-	 * @param mixed Parameter Option
+	 * @param mixed $option Parameter Option
 	 * @return void
 	 * @throws \MWException
 	 */
 	private function _addauthor( $option ) {
-		//Addauthor can not be used with addlasteditor.
+		// Addauthor can not be used with addlasteditor.
 		if ( !$this->parametersProcessed['addlasteditor'] ) {
 			$this->addTable( 'revision', 'rev' );
 			$this->addWhere( [
@@ -640,7 +646,8 @@ class Query {
 	 * @throws \MWException
 	 */
 	private function _addfirstcategorydate( $option ) {
-		//@TODO: This should be programmatically determining which categorylink table to use instead of assuming the first one.
+		// @TODO: This should be programmatically determining which categorylink table to use
+		// instead of assuming the first one.
 		$this->addSelect( [
 			'cl_timestamp' => "DATE_FORMAT(cl1.cl_timestamp, '%Y%m%d%H%i%s')",
 		] );
@@ -654,7 +661,7 @@ class Query {
 	 * @throws \MWException
 	 */
 	private function _addlasteditor( $option ) {
-		//Addlasteditor can not be used with addauthor.
+		// Addlasteditor can not be used with addauthor.
 		if ( !isset( $this->parametersProcessed['addauthor'] ) ||
 		     !$this->parametersProcessed['addauthor'] ) {
 			$this->addTable( 'revision', 'rev' );
@@ -770,7 +777,7 @@ class Query {
 	/**
 	 * Helper method to handle relative timestamps.
 	 *
-	 * @param mixed $inputDate int or string
+	 * @param string $inputDate int or string
 	 * @return int
 	 */
 	private function convertTimestamp( $inputDate ) {
@@ -803,7 +810,7 @@ class Query {
 				break;
 		}
 
-		if (strtolower($inputDate) !== 'today' && !is_null($intervalSpec)) {
+		if ( strtolower( $inputDate ) !== 'today' && !is_null( $intervalSpec ) ) {
 			$date = new DateTime();
 			$date->sub( new DateInterval( $intervalSpec ) );
 			$timestamp = $date->format( 'YmdHis' );
@@ -819,7 +826,7 @@ class Query {
 	/**
 	 * Set SQL for 'allrevisionssince' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option Parameter Option
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -840,7 +847,7 @@ class Query {
 	/**
 	 * Set SQL for 'articlecategory' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option Parameter Option
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -852,7 +859,7 @@ class Query {
 	/**
 	 * Set SQL for 'categoriesminmax' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param array $option First Key min categories Second Key max categories
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -873,7 +880,7 @@ class Query {
 	/**
 	 * Set SQL for 'category' parameter.  This includes 'category', 'categorymatch', and 'categoryregexp'.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param array[][] $option ComparisonType => [ operatorType => [ CategoryGroups ] ]
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -927,7 +934,7 @@ class Query {
 	/**
 	 * Set SQL for 'notcategory' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param array[][] $option ComparisonType => [ operatorType => [ CategoryGroups ] ]
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -956,7 +963,7 @@ class Query {
 	/**
 	 * Set SQL for 'createdby' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option Name
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -973,7 +980,7 @@ class Query {
 	/**
 	 * Set SQL for 'distinct' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string|bool $option Strict/true for distinct, else not distinct
 	 * @return void
 	 */
 	private function _distinct( $option ) {
@@ -987,7 +994,7 @@ class Query {
 	/**
 	 * Set SQL for 'firstrevisionsince' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option Date Time
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1014,7 +1021,7 @@ class Query {
 	/**
 	 * Set SQL for 'goal' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option No limit, no offset if 'categories'
 	 * @return void
 	 */
 	private function _goal( $option ) {
@@ -1063,13 +1070,13 @@ class Query {
 	 * @return void
 	 */
 	private function _hiddencategories( $option ) {
-		//@TODO: Unfinished functionality!  Never implemented by original author.
+		// @TODO: Unfinished functionality!  Never implemented by original author.
 	}
 
 	/**
 	 * Set SQL for 'imagecontainer' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param \Title[][] $option Title Array
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1107,7 +1114,7 @@ class Query {
 	/**
 	 * Set SQL for 'imageused' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param array $option array with links
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1125,6 +1132,7 @@ class Query {
 
 		foreach ( $option as $linkGroup ) {
 			foreach ( $linkGroup as $link ) {
+				/** @var $link \Title */
 				if ( $this->parameters->getParameter( 'ignorecase' ) ) {
 					$ors[] =
 						"LOWER(CAST(il.il_to AS char))=LOWER(" .
@@ -1142,7 +1150,7 @@ class Query {
 	/**
 	 * Set SQL for 'lastmodifiedby' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option Name
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1156,7 +1164,7 @@ class Query {
 	/**
 	 * Set SQL for 'lastrevisionbefore' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option Date Time
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1180,7 +1188,7 @@ class Query {
 	/**
 	 * Set SQL for 'linksfrom' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param \Title[][] $option Title Array
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1225,7 +1233,7 @@ class Query {
 	/**
 	 * Set SQL for 'linksto' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param \Title[][] $option Title Array
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1305,7 +1313,7 @@ class Query {
 	/**
 	 * Set SQL for 'notlinksfrom' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param \Title[][] $option Title Array
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1348,7 +1356,7 @@ class Query {
 	/**
 	 * Set SQL for 'notlinksto' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param \Title[][] $option Title Array
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1396,7 +1404,7 @@ class Query {
 	/**
 	 * Set SQL for 'linkstoexternal' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param array $option Parameter Option
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1441,7 +1449,7 @@ class Query {
 	/**
 	 * Set SQL for 'maxrevisions' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param int $option Max Revisions count
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1452,7 +1460,7 @@ class Query {
 	/**
 	 * Set SQL for 'minoredits' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option 'exclude'
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1465,7 +1473,7 @@ class Query {
 	/**
 	 * Set SQL for 'minrevisions' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param int $option Min Revisions count
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1476,7 +1484,7 @@ class Query {
 	/**
 	 * Set SQL for 'modifiedby' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option Name
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1489,7 +1497,7 @@ class Query {
 	/**
 	 * Set SQL for 'namespace' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param array $option Namespaces
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1510,7 +1518,7 @@ class Query {
 	/**
 	 * Set SQL for 'notcreatedby' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option Name
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1523,7 +1531,7 @@ class Query {
 	/**
 	 * Set SQL for 'notlastmodifiedby' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option Name
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1537,7 +1545,7 @@ class Query {
 	/**
 	 * Set SQL for 'notmodifiedby' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option Name
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1551,7 +1559,7 @@ class Query {
 	/**
 	 * Set SQL for 'notnamespace' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param array $option Namespace Array
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1572,7 +1580,7 @@ class Query {
 	/**
 	 * Set SQL for 'count' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param int $option Limit Count
 	 * @return void
 	 */
 	private function _count( $option ) {
@@ -1582,7 +1590,7 @@ class Query {
 	/**
 	 * Set SQL for 'offset' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param int $option Offset
 	 * @return void
 	 */
 	private function _offset( $option ) {
@@ -1592,7 +1600,7 @@ class Query {
 	/**
 	 * Set SQL for 'order' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option 'descending' / 'desc' for DESC, ASC otherwise
 	 * @return void
 	 */
 	private function _order( $option ) {
@@ -1610,7 +1618,7 @@ class Query {
 	/**
 	 * Set SQL for 'ordercollation' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option Parameter Option
 	 * @return bool
 	 */
 	private function _ordercollation( $option ) {
@@ -1653,12 +1661,13 @@ class Query {
 		global $wgContLang;
 
 		if ( $this->parameters->getParameter( 'goal' ) == 'categories' ) {
-			//No order methods for returning categories.
+			// No order methods for returning categories.
 			return true;
 		}
 
 		$namespaces = $wgContLang->getNamespaces();
-		//$aStrictNs = array_slice((array) Config::getSetting('allowedNamespaces'), 1, count(Config::getSetting('allowedNamespaces')), true);
+		// $aStrictNs = array_slice((array) Config::getSetting('allowedNamespaces'), 1, count
+		//(Config::getSetting('allowedNamespaces')), true);
 		$namespaces = array_slice( $namespaces, 3, count( $namespaces ), true );
 		$_namespaceIdToText = "CASE {$this->tableNames['page']}.page_namespace";
 
@@ -1676,7 +1685,8 @@ class Query {
 			switch ( $orderMethod ) {
 				case 'category':
 					$this->addOrderBy( 'cl_head.cl_to' );
-					$this->addSelect( [ 'cl_head.cl_to' ] ); //Gives category headings in the result.
+					// Gives category headings in the result.
+					$this->addSelect( [ 'cl_head.cl_to' ] );
 
 					if ( ( is_array( $this->parameters->getParameter( 'catheadings' ) ) &&
 					       in_array( '', $this->parameters->getParameter( 'catheadings' ) ) ) ||
@@ -1712,13 +1722,14 @@ class Query {
 					break;
 
 				case 'categoryadd':
-					//@TODO: See TODO in __addfirstcategorydate().
+					// @TODO: See TODO in __addfirstcategorydate().
 					$this->addOrderBy( 'cl1.cl_timestamp' );
 					break;
 
 				case 'counter':
 					if ( class_exists( "\\HitCounters\\Hooks" ) ) {
-						//If the "addpagecounter" parameter was not used the table and join need to be added now.
+						// If the "addpagecounter" parameter was not used the table and join need
+						// to be added now.
 						if ( !array_key_exists( 'hit_counter', $this->tables ) ) {
 							$this->addTable( 'hit_counter', 'hit_counter' );
 
@@ -1810,7 +1821,8 @@ class Query {
 								             $this->getCollateSQL(),
 							] );
 						} else {
-							//This runs on the assumption that at least one category parameter was used and that numbering starts at 1.
+							// This runs on the assumption that at least one category parameter
+							// was used and that numbering starts at 1.
 							$this->addSelect( [
 								'sortkey' => "IFNULL(cl1.cl_sortkey, {$replaceConcat}) " .
 								             $this->getCollateSQL(),
@@ -1846,7 +1858,8 @@ class Query {
 							             $this->getCollateSQL(),
 						] );
 					} else {
-						//Generate sortkey like for category links. UTF-8 created problems with non-utf-8 MySQL databases.
+						// Generate sortkey like for category links. UTF-8 created problems with
+						// non-utf-8 MySQL databases.
 						$this->addSelect( [
 							'sortkey' => "REPLACE(CONCAT(IF(" . $this->tableNames['page'] .
 							             ".page_namespace = 0, '', CONCAT(" . $_namespaceIdToText .
@@ -1880,7 +1893,7 @@ class Query {
 	/**
 	 * Set SQL for 'redirects' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option 'only' / 'exclude'
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -1905,13 +1918,13 @@ class Query {
 	/**
 	 * Set SQL for 'stablepages' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option 'only' / 'exclude'
 	 * @return void
 	 * @throws \MWException
 	 */
 	private function _stablepages( $option ) {
 		if ( function_exists( 'efLoadFlaggedRevs' ) ) {
-			//Do not add this again if 'qualitypages' has already added it.
+			// Do not add this again if 'qualitypages' has already added it.
 			if ( !$this->parametersProcessed['qualitypages'] ) {
 				$this->addJoin( 'flaggedpages', [
 					"LEFT JOIN",
@@ -1938,13 +1951,13 @@ class Query {
 	/**
 	 * Set SQL for 'qualitypages' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option 'only' / 'exclude'
 	 * @return void
 	 * @throws \MWException
 	 */
 	private function _qualitypages( $option ) {
 		if ( function_exists( 'efLoadFlaggedRevs' ) ) {
-			//Do not add this again if 'stablepages' has already added it.
+			// Do not add this again if 'stablepages' has already added it.
 			if ( !$this->parametersProcessed['stablepages'] ) {
 				$this->addJoin( 'flaggedpages', [
 					"LEFT JOIN",
@@ -1967,7 +1980,7 @@ class Query {
 	/**
 	 * Set SQL for 'title' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param \Title[][] $option Array with Titles
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -2007,7 +2020,7 @@ class Query {
 	/**
 	 * Set SQL for 'nottitle' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param \Title[][] $option Array with Titles zo exclude
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -2047,7 +2060,7 @@ class Query {
 	/**
 	 * Set SQL for 'titlegt' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option Parameter Option
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -2077,7 +2090,7 @@ class Query {
 	/**
 	 * Set SQL for 'titlelt' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param string $option Parameter Option
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -2107,7 +2120,7 @@ class Query {
 	/**
 	 * Set SQL for 'usedby' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param \Title[][] $option Array with Titles
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -2147,7 +2160,7 @@ class Query {
 	/**
 	 * Set SQL for 'uses' parameter.
 	 *
-	 * @param mixed $option Parameter Option
+	 * @param \Title[][] $option Array with Titles
 	 * @return void
 	 * @throws \MWException
 	 */
@@ -2179,7 +2192,7 @@ class Query {
 	/**
 	 * Set SQL for 'notuses' parameter.
 	 *
-	 * @param array $option Parameter Option
+	 * @param \Title[][] $option Array with Titles
 	 * @return void
 	 * @throws \MWException
 	 */

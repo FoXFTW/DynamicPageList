@@ -149,62 +149,62 @@ class DynamicPageList {
 
 	/**
 	 * DynamicPageList constructor.
-	 * @param $headings
-	 * @param $bHeadingCount
-	 * @param $iColumns
-	 * @param $iRows
-	 * @param $iRowSize
-	 * @param $sRowColFormat
-	 * @param $articles
-	 * @param $headingtype
-	 * @param $hlistmode
-	 * @param $listmode
-	 * @param $bescapelinks
-	 * @param $baddexternallink
-	 * @param $includepage
-	 * @param $includemaxlen
-	 * @param $includeseclabels
-	 * @param $includeseclabelsmatch
-	 * @param $includeseclabelsnotmatch
-	 * @param $includematchparsed
+	 * @param array $headings
+	 * @param string $bHeadingCount
+	 * @param int $iColumns
+	 * @param int $iRows
+	 * @param int $iRowSize
+	 * @param string $sRowColFormat
+	 * @param array $articles
+	 * @param string $headingType
+	 * @param \DPL\ListMode $hListMode
+	 * @param \DPL\ListMode $listMode
+	 * @param bool $bEscapeLinks
+	 * @param bool $bAddExternalLink
+	 * @param bool $includePage
+	 * @param int $includeMaxLen
+	 * @param array $includeSecLabels
+	 * @param array $includeSecLabelsMatch
+	 * @param array $includeSecLabelsNotMatch
+	 * @param bool $includeMatchParsed
 	 * @param \Parser $parser
-	 * @param $replaceInTitle
-	 * @param $iTitleMaxLen
-	 * @param $defaultTemplateSuffix
-	 * @param $aTableRow
-	 * @param $bIncludeTrim
-	 * @param $iTableSortCol
-	 * @param $updateRules
-	 * @param $deleteRules
+	 * @param array $replaceInTitle
+	 * @param int $iTitleMaxLen
+	 * @param string $defaultTemplateSuffix
+	 * @param array $aTableRow
+	 * @param bool $bIncludeTrim
+	 * @param int $iTableSortCol
+	 * @param string $updateRules
+	 * @param string $deleteRules
 	 * @throws \MWException
 	 * @throws \ReadOnlyError
 	 */
 	public function __construct(
 		$headings, $bHeadingCount, $iColumns, $iRows, $iRowSize, $sRowColFormat, $articles,
-		$headingtype, $hlistmode, $listmode, $bescapelinks, $baddexternallink, $includepage,
-		$includemaxlen, $includeseclabels, $includeseclabelsmatch, $includeseclabelsnotmatch,
-		$includematchparsed, Parser &$parser, $replaceInTitle, $iTitleMaxLen,
-		$defaultTemplateSuffix, $aTableRow, $bIncludeTrim, $iTableSortCol, $updateRules,
-		$deleteRules
+		$headingType, ListMode $hListMode, ListMode $listMode, $bEscapeLinks, $bAddExternalLink,
+		$includePage, $includeMaxLen, $includeSecLabels, $includeSecLabelsMatch,
+		$includeSecLabelsNotMatch, $includeMatchParsed, Parser &$parser, $replaceInTitle,
+		$iTitleMaxLen, $defaultTemplateSuffix, $aTableRow, $bIncludeTrim, $iTableSortCol,
+		$updateRules, $deleteRules
 	) {
 		global $wgContLang;
 
 		$this->nameSpaces = $wgContLang->getNamespaces();
 		$this->mArticles = $articles;
-		$this->mListMode = $listmode;
-		$this->mEscapeLinks = $bescapelinks;
-		$this->mAddExternalLink = $baddexternallink;
-		$this->mIncPage = $includepage;
+		$this->mListMode = $listMode;
+		$this->mEscapeLinks = $bEscapeLinks;
+		$this->mAddExternalLink = $bAddExternalLink;
+		$this->mIncPage = $includePage;
 
-		if ( $includepage ) {
-			$this->mIncSecLabels = $includeseclabels;
-			$this->mIncSecLabelsMatch = $includeseclabelsmatch;
-			$this->mIncSecLabelsNotMatch = $includeseclabelsnotmatch;
-			$this->mIncParsed = $includematchparsed;
+		if ( $includePage ) {
+			$this->mIncSecLabels = $includeSecLabels;
+			$this->mIncSecLabelsMatch = $includeSecLabelsMatch;
+			$this->mIncSecLabelsNotMatch = $includeSecLabelsNotMatch;
+			$this->mIncParsed = $includeMatchParsed;
 		}
 
-		if ( isset( $includemaxlen ) ) {
-			$this->mIncMaxLen = $includemaxlen + 1;
+		if ( isset( $includeMaxLen ) ) {
+			$this->mIncMaxLen = $includeMaxLen + 1;
 		} else {
 			$this->mIncMaxLen = 0;
 		}
@@ -213,7 +213,7 @@ class DynamicPageList {
 		$this->mTableRow = $aTableRow;
 
 		// cloning the parser in the following statement leads in some cases to a php error in MW 1.15
-		// 	You must apply the following patch to avoid this:
+		// You must apply the following patch to avoid this:
 		// add in LinkHoldersArray.php at the beginning of function 'merge' the following code lines:
 		//		if (!isset($this->interwikis)) {
 		//			$this->internals = [];
@@ -255,9 +255,9 @@ class DynamicPageList {
 					$nSize = $hSpace + 1; // correction for result sets with one entry
 				}
 
-				$this->mHeadingType = $headingtype;
-				$this->mHListMode = $hlistmode;
-				$this->mOutput .= $hlistmode->sListStart;
+				$this->mHeadingType = $headingType;
+				$this->mHListMode = $hListMode;
+				$this->mOutput .= $hListMode->sListStart;
 				$nStart = 0;
 				$remainingLines = $nSize; // remaining lines in current group
 				$g = 0;
@@ -265,9 +265,9 @@ class DynamicPageList {
 
 				foreach ( $headings as $headingCount ) {
 					$headingLink = $articles[$nStart - $offset]->mParentHLink;
-					$this->mOutput .= $hlistmode->sItemStart;
-					$this->mOutput .= $hlistmode->sHeadingStart . $headingLink .
-					                  $hlistmode->sHeadingEnd;
+					$this->mOutput .= $hListMode->sItemStart;
+					$this->mOutput .= $hListMode->sHeadingStart . $headingLink .
+					                  $hListMode->sHeadingEnd;
 
 					if ( $bHeadingCount ) {
 						$this->mOutput .= $this->formatCount( $headingCount );
@@ -317,22 +317,22 @@ class DynamicPageList {
 						}
 					} while ( $portion > 0 );
 
-					$this->mOutput .= $hlistmode->sItemEnd;
+					$this->mOutput .= $hListMode->sItemEnd;
 				}
 
-				$this->mOutput .= $hlistmode->sListEnd;
+				$this->mOutput .= $hListMode->sListEnd;
 				$this->mOutput .= "\n|}\n";
 			} else {
-				$this->mHeadingType = $headingtype;
-				$this->mHListMode = $hlistmode;
-				$this->mOutput .= $hlistmode->sListStart;
+				$this->mHeadingType = $headingType;
+				$this->mHListMode = $hListMode;
+				$this->mOutput .= $hListMode->sListStart;
 				$headingStart = 0;
 
 				foreach ( $headings as $headingCount ) {
 					$headingLink = $articles[$headingStart]->mParentHLink;
-					$this->mOutput .= $hlistmode->sItemStart;
-					$this->mOutput .= $hlistmode->sHeadingStart . $headingLink .
-					                  $hlistmode->sHeadingEnd;
+					$this->mOutput .= $hListMode->sItemStart;
+					$this->mOutput .= $hListMode->sHeadingStart . $headingLink .
+					                  $hListMode->sHeadingEnd;
 
 					if ( $bHeadingCount ) {
 						$this->mOutput .= $this->formatCount( $headingCount );
@@ -341,11 +341,11 @@ class DynamicPageList {
 					$this->mOutput .= $this->formatList( $headingStart, $headingCount,
 						$iTitleMaxLen, $defaultTemplateSuffix, $bIncludeTrim, $iTableSortCol,
 						$updateRules, $deleteRules );
-					$this->mOutput .= $hlistmode->sItemEnd;
+					$this->mOutput .= $hListMode->sItemEnd;
 					$headingStart += $headingCount;
 				}
 
-				$this->mOutput .= $hlistmode->sListEnd;
+				$this->mOutput .= $hListMode->sListEnd;
 			}
 		} elseif ( $iColumns != 1 || $iRows != 1 ) {
 			// repeat outer tags for each of the specified columns / rows in the output
@@ -418,7 +418,7 @@ class DynamicPageList {
 	}
 
 	/**
-	 * @param $numArt
+	 * @param mixed $numArt
 	 * @return string
 	 */
 	public function formatCount( $numArt ) {
@@ -434,7 +434,7 @@ class DynamicPageList {
 	/**
 	 * Returns message in the requested format after parsing wikitext to html
 	 * This is meant to be equivalent to wfMsgExt() with parse, parsemag and escape as available options but using the DPL local parser instead of the global one (bugfix).
-	 * @param string $key
+	 * @param string $key Message Key
 	 * @param array $options
 	 * @return string
 	 */
@@ -463,14 +463,14 @@ class DynamicPageList {
 	}
 
 	/**
-	 * @param $iStart
-	 * @param $iCount
-	 * @param $iTitleMaxLen
-	 * @param $defaultTemplateSuffix
-	 * @param $bIncludeTrim
-	 * @param $iTableSortCol
-	 * @param $updateRules
-	 * @param $deleteRules
+	 * @param int $iStart
+	 * @param int $iCount
+	 * @param int $iTitleMaxLen
+	 * @param string $defaultTemplateSuffix
+	 * @param bool $bIncludeTrim
+	 * @param int $iTableSortCol
+	 * @param string $updateRules
+	 * @param string $deleteRules
 	 * @return string
 	 * @throws \MWException
 	 * @throws \ReadOnlyError
@@ -483,13 +483,13 @@ class DynamicPageList {
 
 		$mode = $this->mListMode;
 
-		//categorypage-style list output mode
+		// categorypage-style list output mode
 		if ( $mode->name == 'category' ) {
 			return $this->formatCategoryList( $iStart, $iCount );
 		}
 
-		//process results of query, outputing equivalent of <li>[[Article]]</li> for each result,
-		//or something similar if the list uses other startlist/endlist;
+		// process results of query, outputing equivalent of <li>[[Article]]</li> for each result,
+		// or something similar if the list uses other startlist/endlist;
 		$rBody = '';
 
 		// the following statement caused a problem with multiple columns:  $this->filteredCount = 0;
@@ -861,7 +861,8 @@ class DynamicPageList {
 			}
 
 			if ( $i > $iStart ) {
-				$rBody .= $mode->sInline; //If mode is not 'inline', sInline attribute is empty, so does nothing
+				// If mode is not 'inline', sInline attribute is empty, so does nothing
+				$rBody .= $mode->sInline;
 			}
 
 			// symbolic substitution of %PAGE% by the current article's name
@@ -1401,23 +1402,27 @@ class DynamicPageList {
 
 			$titleX = Title::newFromText( $title );
 			$articleX = new Article( $titleX );
+			$titleEncoded = urlencode( $title );
+			$textEscaped = htmlspecialchars( $text );
+			$timestampNow = wfTimestampNow();
 
-			$form = '<html>
-	<form id="editform" name="editform" method="post" action="' . $wgScriptPath .
-			        '/index.php?title=' . urlencode( $title ) . '&action=submit" enctype="multipart/form-data">
+			$form = <<<EOL
+<html>
+	<form id="editform" name="editform" method="post" action="{$wgScriptPath}/index.php?title='{$titleEncoded} . '&action=submit" enctype="multipart/form-data">
 		<input type="hidden" value="" name="wpSection" />
-		<input type="hidden" value="' . wfTimestampNow() . '" name="wpStarttime" />
-		<input type="hidden" value="' . $articleX->getTimestamp() . '" name="wpEdittime" />
+		<input type="hidden" value="{$timestampNow}" name="wpStarttime" />
+		<input type="hidden" value="{$articleX->getTimestamp()}" name="wpEdittime" />
 		<input type="hidden" value="" name="wpScrolltop" id="wpScrolltop" />
-		<textarea tabindex="1" accesskey="," name="wpTextbox1" id="wpTextbox1" rows="' .
-			        $wgUser->getIntOption( 'rows' ) . '" cols="' . $wgUser->getIntOption( 'cols' ) .
-			        '" >' . htmlspecialchars( $text ) . '</textarea>
-		<input type="hidden" name="wpSummary value="' . $summary . '" id="wpSummary" />
+		<textarea tabindex="1" accesskey="," name="wpTextbox1" id="wpTextbox1" 
+		rows="{$wgUser->getIntOption( 'rows' )}" cols="{$wgUser->getIntOption( 'cols' )}" 
+		>{$textEscaped}</textarea>
+		<input type="hidden" name="wpSummary" value="{$summary}" id="wpSummary" />
 		<input name="wpAutoSummary" type="hidden" value="" />
 		<input id="wpSave" name="wpSave" type="submit" value="Save page" accesskey="s" title="Save your changes [s]" />
-		<input type="hidden" value="' . $wgRequest->getVal( 'token' ) . '" name="wpEditToken" />
+		<input type="hidden" value="{$wgRequest->getVal( 'token' )}" name="wpEditToken" />
 	</form>
-</html>';
+</html>
+EOL;
 
 			return $form;
 		}
@@ -1947,25 +1952,25 @@ class DynamicPageList {
 	 * format one single item of an entry in the output list (i.e. one occurence of one item from the include parameter)
 	 *
 	 * @param array $pieces
-	 * @param int $s
+	 * @param int $rowId
 	 * @param \DPL\Article $article
 	 */
-	public function formatSingleItems( &$pieces, $s, Article $article ) {
+	public function formatSingleItems( &$pieces, $rowId, Article $article ) {
 		$firstCall = true;
 
 		foreach ( $pieces as $key => $val ) {
-			if ( array_key_exists( $s, $this->mTableRow ) ) {
-				if ( $s == 0 || $firstCall ) {
-					$pieces[$key] = str_replace( '%%', $val, $this->mTableRow[$s] );
+			if ( array_key_exists( $rowId, $this->mTableRow ) ) {
+				if ( $rowId == 0 || $firstCall ) {
+					$pieces[$key] = str_replace( '%%', $val, $this->mTableRow[$rowId] );
 				} else {
-					$n = strpos( $this->mTableRow[$s], '|' );
+					$n = strpos( $this->mTableRow[$rowId], '|' );
 					if ( $n === false ||
-					     !( strpos( substr( $this->mTableRow[$s], 0, $n ), '{' ) === false ) ||
-					     !( strpos( substr( $this->mTableRow[$s], 0, $n ), '[' ) === false ) ) {
-						$pieces[$key] = str_replace( '%%', $val, $this->mTableRow[$s] );
+					     !( strpos( substr( $this->mTableRow[$rowId], 0, $n ), '{' ) === false ) ||
+					     !( strpos( substr( $this->mTableRow[$rowId], 0, $n ), '[' ) === false ) ) {
+						$pieces[$key] = str_replace( '%%', $val, $this->mTableRow[$rowId] );
 					} else {
 						$pieces[$key] =
-							str_replace( '%%', $val, substr( $this->mTableRow[$s], $n + 1 ) );
+							str_replace( '%%', $val, substr( $this->mTableRow[$rowId], $n + 1 ) );
 					}
 				}
 
@@ -2034,7 +2039,7 @@ class DynamicPageList {
 	/**
 	 * generate a hyperlink to the article
 	 * @param string $tag
-	 * @param Article $article
+	 * @param \DPL\Article $article
 	 * @param int $iTitleMaxLen
 	 * @return mixed
 	 */
@@ -2106,8 +2111,8 @@ class DynamicPageList {
 	 * ... it is not larger that $lim characters
 	 * ... it is balanced in terms of braces, brackets and tags
 	 * ... can be used as content of a wikitable field without spoiling the whole surrounding wikitext structure
-	 * @param  int $lim limit of character count for the result
-	 * @param  string $text the wikitext to be truncated
+	 * @param int $lim limit of character count for the result
+	 * @param string $text the wikitext to be truncated
 	 * @return string the truncated text; note that in some cases it may be slightly longer than
 	 *  the given limit
 	 *  if the text is alread shorter than the limit or if the limit is negative, the
