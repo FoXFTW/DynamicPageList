@@ -68,7 +68,7 @@ class Parameters extends ParametersData {
 		foreach ( $parameters as $parameter ) {
 			if ( $this->getData( $parameter )['default'] !== null &&
 			     !( $this->getData( $parameter )['default'] === false &&
-			        $this->getData( $parameter )['bool'] === true ) ) {
+			        $this->getData( $parameter )['boolean'] === true ) ) {
 
 				if ( $parameter == 'debug' ) {
 					DynamicPageListHooks::setDebugLevel( $this->getData( $parameter )['default'] );
@@ -167,7 +167,8 @@ class Parameters extends ParametersData {
 			}
 
 			// Booleans
-			if ( array_key_exists( 'bool', $parameterData ) && $parameterData['bool'] === true ) {
+			if ( array_key_exists( 'boolean', $parameterData ) && $parameterData['boolean'] === true
+			) {
 				$option = $this->filterBoolean( $option );
 
 				if ( $option === null ) {
