@@ -11,7 +11,6 @@
 
 namespace DPL;
 
-use Article;
 use CategoryViewer;
 use ContentHandler;
 use Parser;
@@ -1404,7 +1403,7 @@ class DynamicPageList {
 			global $wgScriptPath, $wgRequest;
 
 			$titleX = Title::newFromText( $title );
-			$articleX = new Article( $titleX );
+			$articleX = new Article( $titleX, $titleX->getNamespace() );
 			$titleEncoded = urlencode( $title );
 			$textEscaped = htmlspecialchars( $text );
 			$timestampNow = wfTimestampNow();
@@ -2070,7 +2069,7 @@ EOL;
 	 * @param int $argNr
 	 * @param bool $firstCall
 	 * @param int $maxLen
-	 * @param \Dpl\Article $article
+	 * @param \DPL\Article $article
 	 * @return mixed|string
 	 */
 	public function formatTemplateArg( $arg, $s, $argNr, $firstCall, $maxLen, Article $article ) {
