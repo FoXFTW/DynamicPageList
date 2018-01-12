@@ -10,6 +10,7 @@
 
 namespace DPL;
 
+use MWException;
 use Title;
 
 class Article {
@@ -19,6 +20,20 @@ class Article {
 	 * @var array
 	 */
 	static private $headings = [];
+
+	/**
+	 * Used only for static::newFromRow
+	 *
+	 * @var \DPL\Parameters
+	 */
+	static private $parameters;
+
+	/**
+	 * Used only for static::newFromRow
+	 *
+	 * @var \Title
+	 */
+	static private $title;
 
 	/**
 	 * Title
@@ -32,7 +47,7 @@ class Article {
 	 *
 	 * @var string
 	 */
-	public $mNamespace = -1;
+	public $mNamespace = - 1;
 
 	/**
 	 * Page ID
@@ -53,7 +68,7 @@ class Article {
 	 *
 	 * @var string
 	 */
-	public $mSelNamespace = -1;
+	public $mSelNamespace = - 1;
 
 	/**
 	 * Selected title of image.
@@ -202,54 +217,19 @@ class Article {
 	 * @param int $pageNamespace Page Namespace ID
 	 * @param string $pageTitle Page Title as Selected from Query
 	 * @return \DPL\Article \DPL\Article Object
+	 * @throws MWException
 	 */
 	static public function newFromRow(
 		$row, Parameters $parameters, Title $title, $pageNamespace, $pageTitle
 	) {
-		global $wgLang, $wgContLang;
+		global $wgLang;
+
+		static::$parameters = $parameters;
+		static::$title = $title;
 
 		$article = new Article( $title, $pageNamespace );
-
-		$titleText = $title->getText();
-
-		if ( $parameters->getParameter( 'shownamespace' ) === true ) {
-			$titleText = $title->getPrefixedText();
-		}
-
-		if ( $parameters->getParameter( 'replaceintitle' ) !== null ) {
-			$titleText =
-				preg_replace( $parameters->getParameter( 'replaceintitle' )[0],
-					$parameters->getParameter( 'replaceintitle' )[1], $titleText );
-		}
-
-		// Chop off title if longer than the 'titlemaxlen' parameter.
-		if ( $parameters->getParameter( 'titlemaxlen' ) !== null &&
-		     strlen( $titleText ) > $parameters->getParameter( 'titlemaxlen' ) ) {
-			$titleText =
-				substr( $titleText, 0, $parameters->getParameter( 'titlemaxlen' ) ) . '...';
-		}
-
-		if ( $parameters->getParameter( 'showcurid' ) === true && isset( $row['page_id'] ) ) {
-			$articleLink =
-				'[' . $title->getLinkURL( [ 'curid' => $row['page_id'] ] ) . ' ' .
-				htmlspecialchars( $titleText ) . ']';
-		} else {
-			$articleLink =
-				'[[' . ( $parameters->getParameter( 'escapelinks' ) &&
-				         ( $pageNamespace == NS_CATEGORY || $pageNamespace == NS_FILE ) ? ':'
-					: '' ) . $title->getFullText() . '|' . htmlspecialchars( $titleText ) . ']]';
-		}
-
-		$article->mLink = $articleLink;
-
-		//get first char used for category-style output
-		if ( isset( $row['sortkey'] ) ) {
-			$article->mStartChar =
-				$wgContLang->convert( $wgContLang->firstChar( $row['sortkey'] ) );
-		} else {
-			$article->mStartChar = $wgContLang->convert( $wgContLang->firstChar( $pageTitle ) );
-		}
-
+		$article->mLink = static::getArticleLink( $row, $pageNamespace );
+		$article->mStartChar = static::getFirstChar( $row, $pageTitle );
 		$article->mID = intval( $row['page_id'] );
 
 		// External link
@@ -267,134 +247,382 @@ class Article {
 			$article->mSize = $row['page_len'];
 		}
 
-		// STORE initially selected PAGE
-		if ( count( $parameters->getParameter( 'linksto' ) ) ||
-		     count( $parameters->getParameter( 'linksfrom' ) ) ) {
-			if ( !isset( $row['sel_title'] ) ) {
-				$article->mSelTitle = 'unknown page';
-				$article->mSelNamespace = 0;
-			} else {
-				$article->mSelTitle = $row['sel_title'];
-				$article->mSelNamespace = $row['sel_ns'];
-			}
+		$initiallySelectedPage = static::getInitiallySelectedPage( $row );
+		if ( !empty( $initiallySelectedPage ) ) {
+			$article->mSelTitle = $initiallySelectedPage['title'];
+			$article->mSelNamespace = $initiallySelectedPage['namespace'];
 		}
 
-		// STORE selected image
-		if ( count( $parameters->getParameter( 'imageused' ) ) > 0 ) {
-			if ( !isset( $row['image_sel_title'] ) ) {
-				$article->mImageSelTitle = 'unknown image';
-			} else {
-				$article->mImageSelTitle = $row['image_sel_title'];
-			}
+		$selectedImageTitle = static::getSelectedImageTitle( $row );
+		if ( !is_null( $selectedImageTitle ) ) {
+			$article->mImageSelTitle = $selectedImageTitle;
 		}
 
 		if ( $parameters->getParameter( 'goal' ) != 'categories' ) {
-			// REVISION SPECIFIED
-			if ( $parameters->getParameter( 'lastrevisionbefore' ) ||
-			     $parameters->getParameter( 'allrevisionsbefore' ) ||
-			     $parameters->getParameter( 'firstrevisionsince' ) ||
-			     $parameters->getParameter( 'allrevisionssince' ) ) {
-				$article->mRevision = $row['rev_id'];
-				$article->mUser = $row['rev_user_text'];
-				$article->mDate = $row['rev_timestamp'];
-				$article->mComment = $row['rev_comment'];
+			$revisionData = static::getRevisionData( $row );
+			if ( !empty( $revisionData ) ) {
+				$article->mRevision = $revisionData['id'];
+				$article->mUser = $revisionData['user'];
+				$article->mDate = $revisionData['date'];;
+				$article->mComment = $revisionData['comment'];
 			}
 
-			// SHOW "PAGE_TOUCHED" DATE, "FIRSTCATEGORYDATE" OR (FIRST/LAST) EDIT DATE
-			if ( $parameters->getParameter( 'addpagetoucheddate' ) ) {
-				$article->mDate = $row['page_touched'];
-			} elseif ( $parameters->getParameter( 'addfirstcategorydate' ) ) {
-				$article->mDate = $row['cl_timestamp'];
-			} elseif ( $parameters->getParameter( 'addeditdate' ) &&
-			           isset( $row['rev_timestamp'] ) ) {
-				$article->mDate = $row['rev_timestamp'];
-			} elseif ( $parameters->getParameter( 'addeditdate' ) &&
-			           isset( $row['page_touched'] ) ) {
-				$article->mDate = $row['page_touched'];
+			$timestamp = static::getTimestamp( $row );
+			if ( !is_null( $timestamp ) ) {
+				$article->mDate = $timestamp;
 			}
 
 			// Time zone adjustment
-			if ( $article->mDate ) {
+			if ( !is_null( $article->mDate ) ) {
 				$article->mDate = $wgLang->userAdjust( $article->mDate );
 			}
 
-			if ( $article->mDate && $parameters->getParameter( 'userdateformat' ) ) {
-				// Apply the userdateformat
-				$article->myDate =
-					gmdate( $parameters->getParameter( 'userdateformat' ),
-						wfTimeStamp( TS_UNIX, $article->mDate ) );
+			// Apply the userdateformat
+			$userDateFormat = $parameters->getParameter( 'userdateformat' );
+			if ( !is_null( $article->mDate ) && !is_null( $userDateFormat ) ) {
+				$date = gmdate( $userDateFormat, wfTimeStamp( TS_UNIX, $article->mDate ) );
+				$article->myDate = $date;
 			}
 
 			// CONTRIBUTION, CONTRIBUTOR
-			if ( $parameters->getParameter( 'addcontribution' ) ) {
-				$article->mContribution = $row['contribution'];
-				$article->mContributor = $row['contributor'];
-				$article->mContrib =
-					substr( '*****************', 0, round( log( $row['contribution'] ) ) );
+			$contribution = static::getContributionAndContributor( $row );
+			if ( !empty( $contribution ) ) {
+				$article->mContribution = $contribution['contribution'];
+				$article->mContributor = $contribution['contributor'];
+				$article->mContrib = $contribution['contrib'];
 			}
 
 			// USER/AUTHOR(S)
-			// because we are going to do a recursive parse at the end of the output phase
-			// we have to generate wiki syntax for linking to a user´s homepage
-			if ( $parameters->getParameter( 'adduser' ) ||
-			     $parameters->getParameter( 'addauthor' ) ||
-			     $parameters->getParameter( 'addlasteditor' ) ) {
-				$article->mUserLink =
-					'[[User:' . $row['rev_user_text'] . '|' . $row['rev_user_text'] . ']]';
-				$article->mUser = $row['rev_user_text'];
+			$author = static::getAuthor( $row );
+			if ( !empty( $author ) ) {
+				$article->mUserLink = $author['link'];
+				$article->mUser = $author['user'];
 			}
 
 			// CATEGORY LINKS FROM CURRENT PAGE
-			if ( $parameters->getParameter( 'addcategories' ) && ( $row['cats'] ) ) {
-				$artCatNames = explode( ' | ', $row['cats'] );
-				foreach ( $artCatNames as $artCatName ) {
-					$article->mCategoryLinks[] =
-						'[[:Category:' . $artCatName . '|' . str_replace( '_', ' ', $artCatName ) .
-						']]';
-					$article->mCategoryTexts[] = str_replace( '_', ' ', $artCatName );
-				}
+			$categories = static::getCategories( $row );
+			if ( !empty( $categories ) ) {
+				$article->mCategoryLinks = $categories['links'];
+				$article->mCategoryTexts = $categories['texts'];
 			}
 
-			// PARENT HEADING (category of the page, editor (user) of the page, etc. Depends on ordermethod param)
-			if ( $parameters->getParameter( 'headingmode' ) != 'none' ) {
-				switch ( $parameters->getParameter( 'ordermethod' )[0] ) {
-					case 'category':
-						//Count one more page in this heading
-						self::$headings[$row['cl_to']] =
-							( isset( self::$headings[$row['cl_to']] )
-								? self::$headings[$row['cl_to']] + 1 : 1 );
-
-						if ( $row['cl_to'] == '' ) {
-							//uncategorized page (used if ordermethod=category,...)
-							$article->mParentHLink =
-								'[[:Special:Uncategorizedpages|' .
-								wfMessage( 'uncategorizedpages' ) . ']]';
-						} else {
-							$article->mParentHLink =
-								'[[:Category:' . $row['cl_to'] . '|' .
-								str_replace( '_', ' ', $row['cl_to'] ) . ']]';
-						}
-						break;
-
-					case 'user':
-						self::$headings[$row['rev_user_text']] =
-							( isset( self::$headings[$row['rev_user_text']] )
-								? self::$headings[$row['rev_user_text']] + 1 : 1 );
-						if ( $row['rev_user'] == 0 ) { //anonymous user
-							$article->mParentHLink =
-								'[[User:' . $row['rev_user_text'] . '|' . $row['rev_user_text'] .
-								']]';
-						} else {
-							$article->mParentHLink =
-								'[[User:' . $row['rev_user_text'] . '|' . $row['rev_user_text'] .
-								']]';
-						}
-						break;
-				}
+			// PARENT HEADING
+			$parentHeading = static::getParentHeadLink( $row );
+			if ( !is_null( $parentHeading ) ) {
+				$article->mParentHLink = $parentHeading;
 			}
 		}
 
+		// Reset Parameter and Title Object
+		static::$parameters = null;
+		static::$title = null;
+
 		return $article;
+	}
+
+	/**
+	 * Generates the Wikitext Article link
+	 *
+	 * @param array $row DB Row
+	 * @param int $pageNamespace Page Namespace
+	 * @return string
+	 * @throws MWException
+	 */
+	private static function getArticleLink( array $row, $pageNamespace ) {
+		$titleText = static::getTitleText();
+		$titleTextEscaped = htmlspecialchars( $titleText );
+
+		$showCurId = (bool)static::$parameters->getParameter( 'showcurid' );
+		if ( $showCurId && isset( $row['page_id'] ) ) {
+			$linkUrl = static::$title->getLinkURL( [ 'curid' => $row['page_id'] ] );
+			$articleLink = "[{$linkUrl} {$titleTextEscaped}]";
+		} else {
+			$articleLink = "[[";
+
+			$escapeLinks = (bool)static::$parameters->getParameter( 'escapelinks' );
+			if ( $escapeLinks || ( $pageNamespace == NS_CATEGORY || $pageNamespace == NS_FILE ) ) {
+				$articleLink .= ":";
+			}
+
+			$articleLink .= static::$title->getFullText() . '|' . $titleTextEscaped . ']]';
+		}
+
+		return $articleLink;
+	}
+
+	/**
+	 * Returns the Text of the Title object
+	 * Prefixed with Namespace if 'shownamespace' is true
+	 * Cut to 'titlemaxlen' is Title Text is longer than 'titlemaxlen'
+	 *
+	 * @return null|string|string[]
+	 * @throws MWException
+	 */
+	private static function getTitleText() {
+		$titleText = static::$title->getText();
+
+		if ( static::$parameters->getParameter( 'shownamespace' ) === true ) {
+			$titleText = static::$title->getPrefixedText();
+		}
+
+		$replaceInTitle = static::$parameters->getParameter( 'replaceintitle' );
+		if ( !is_null( $replaceInTitle ) ) {
+			if ( isset( $replaceInTitle[0] ) && isset( $replaceInTitle[1] ) ) {
+				$pattern = $replaceInTitle[0];
+				$replacement = $replaceInTitle[1];
+				$titleText = preg_replace( $pattern, $replacement, $titleText );
+			} else {
+				throw new MWException( __METHOD__ .
+				                       ': Pattern or Replacement missing in "replaceintitle"' );
+			}
+		}
+
+		$titleMaxLen = static::$parameters->getParameter( 'titlemaxlen' );
+		if ( !is_null( $titleMaxLen ) && strlen( $titleText ) > intval( $titleMaxLen ) ) {
+			$titleText = substr( $titleText, 0, intval( $titleMaxLen ) ) . '...';
+		}
+
+		return $titleText;
+	}
+
+	/**
+	 * get first char used for category-style output
+	 *
+	 * @param array $row
+	 * @param $pageTitle
+	 * @return string
+	 */
+	private static function getFirstChar( array $row, $pageTitle ) {
+		global $wgContLang;
+
+		if ( isset( $row['sortkey'] ) ) {
+			return $wgContLang->convert( $wgContLang->firstChar( $row['sortkey'] ) );
+		} else {
+			return $wgContLang->convert( $wgContLang->firstChar( $pageTitle ) );
+		}
+	}
+
+	/**
+	 * Returns initially selected page and namespace. 'unknown page' and 0 is 'sel_title' is not set
+	 * Empty array otherwise
+	 *
+	 * @param array $row
+	 * @return array
+	 */
+	private static function getInitiallySelectedPage( array $row ) {
+		$linksTo = static::$parameters->getParameter( 'linksto' );
+		$linksFrom = static::$parameters->getParameter( 'linksfrom' );
+
+		if ( ( is_array( $linksTo ) && count( $linksTo ) > 0 ) ||
+		     ( is_array( $linksFrom ) && count( $linksFrom ) > 0 ) ) {
+			if ( !isset( $row['sel_title'] ) ) {
+				return [
+					'title' => 'unknown page',
+					'namespace' => 0,
+				];
+			} else {
+				return [
+					'title' => $row['sel_title'],
+					'namespace' => $row['sel_ns'],
+				];
+			}
+		}
+
+		return [];
+	}
+
+	/**
+	 * Get selected image Title
+	 *
+	 * @param array $row
+	 * @return mixed|null|string
+	 */
+	private static function getSelectedImageTitle( array $row ) {
+		$imageUsed = static::$parameters->getParameter( 'imageused' );
+
+		if ( is_array( $imageUsed ) && count( $imageUsed ) > 0 ) {
+			if ( !isset( $row['image_sel_title'] ) ) {
+				return 'unknown image';
+			} else {
+				return $row['image_sel_title'];
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Returns Revision ID, User, Timestamp and Comment if 'lastrevisionbefore' or
+	 * 'allrevisionsbefore' or 'firstrevisionsince' or 'allrevisionssince' is set
+	 * Empty array otherwise
+	 *
+	 * @param array $row
+	 * @return array
+	 */
+	private static function getRevisionData( array $row ) {
+		$lastRevisionBefore = static::$parameters->getParameter( 'lastrevisionbefore' );
+		$allRevisionsBefore = static::$parameters->getParameter( 'allrevisionsbefore' );
+		$firstRevisionSince = static::$parameters->getParameter( 'firstrevisionsince' );
+		$allRevisionsSince = static::$parameters->getParameter( 'allrevisionssince' );
+
+		if ( !is_null( $lastRevisionBefore ) || !is_null( $allRevisionsBefore ) ||
+		     !is_null( $firstRevisionSince ) || !is_null( $allRevisionsSince ) ) {
+			return [
+				'id' => $row['rev_id'],
+				'user' => $row['rev_user_text'],
+				'date' => $row['rev_timestamp'],
+				'comment' => $row['rev_comment'],
+			];
+		}
+
+		return [];
+	}
+
+	/**
+	 * SHOW "PAGE_TOUCHED" DATE, "FIRSTCATEGORYDATE" OR (FIRST/LAST) EDIT DATE
+	 *
+	 * @param array $row
+	 * @return mixed|null
+	 */
+	private static function getTimestamp( array $row ) {
+		$addPageTouchedDate = static::$parameters->getParameter( 'addpagetoucheddate' );
+		$addFirstCategoryDate = static::$parameters->getParameter( 'addfirstcategorydate' );
+		$addEditDate = static::$parameters->getParameter( 'addeditdate' );
+
+		if ( !is_null( $addPageTouchedDate ) ) {
+			return $row['page_touched'];
+		} elseif ( !is_null( $addFirstCategoryDate ) ) {
+			return $row['cl_timestamp'];
+		} elseif ( !is_null( $addEditDate ) && isset( $row['rev_timestamp'] ) ) {
+			return $row['rev_timestamp'];
+		} elseif ( !is_null( $addEditDate ) && isset( $row['page_touched'] ) ) {
+			return $row['page_touched'];
+		}
+
+		return null;
+	}
+
+	/**
+	 * Returns Contribution and Contributor if 'addcontribution' is set.
+	 * Empty array otherwise
+	 *
+	 * @param array $row
+	 * @return array
+	 */
+	private static function getContributionAndContributor( array $row ) {
+		$addContribution = static::$parameters->getParameter( 'addcontribution' );
+		if ( !is_null( $addContribution ) ) {
+			$stars = '*****************';
+
+			return [
+				'contribution' => $row['contribution'],
+				'contributor' => $row['contributor'],
+				'contrib' => substr( $stars, 0, round( log( $row['contribution'] ) ) ),
+			];
+		}
+
+		return [];
+	}
+
+	/**
+	 * USER/AUTHOR(S)
+	 * because we are going to do a recursive parse at the end of the output phase
+	 * we have to generate wiki syntax for linking to a user´s homepage
+	 * Returns empty array if neither 'adduser' nor 'addauthor' nor 'addlasteditor' is set
+	 *
+	 * @param array $row
+	 * @return array
+	 */
+	private static function getAuthor( array $row ) {
+		$addUser = static::$parameters->getParameter( 'adduser' );
+		$addAuthor = static::$parameters->getParameter( 'addauthor' );
+		$addLastEditor = static::$parameters->getParameter( 'addlasteditor' );
+		if ( !is_null( $addUser ) || !is_null( $addAuthor ) || !is_null( $addLastEditor ) ) {
+			return [
+				'link' => "[[User:{$row['rev_user_text']}|{$row['rev_user_text']}]]",
+				'user' => $row['rev_user_text'],
+			];
+		}
+
+		return [];
+	}
+
+	/**
+	 * Returns Categories and respective Names it 'addcategories' is set
+	 * Empty array otherwise
+	 *
+	 * @param array $row
+	 * @return array
+	 */
+	private static function getCategories( array $row ) {
+		$addCategories = static::$parameters->getParameter( 'addcategories' );
+
+		if ( !is_null( $addCategories ) && isset( $row['cats'] ) ) {
+			$artCatNames = explode( ' | ', $row['cats'] );
+			$categories = [
+				'links' => [],
+				'texts' => [],
+			];
+
+			foreach ( $artCatNames as $artCatName ) {
+				$categoryName = str_replace( '_', ' ', $artCatName );
+				$categories['links'][] = "[[:Category:{$artCatName}|{$categoryName}]]";
+				$categories['texts'][] = $categoryName;
+			}
+
+			return $categories;
+		}
+
+		return [];
+	}
+
+	/**
+	 * PARENT HEADING (category of the page, editor (user) of the page, etc. Depends on ordermethod param)
+	 * Returns Wikitext or null if 'headingmode' is none or 'ordermethod' is not set
+	 *
+	 * @param array $row
+	 * @return null|string
+	 */
+	private static function getParentHeadLink( array $row ) {
+		$headingMode = static::$parameters->getParameter( 'headingmode' );
+		$orderMethod = static::$parameters->getParameter( 'ordermethod' );
+
+		if ( $headingMode !== 'none' && isset( $orderMethod[0] ) ) {
+			switch ( $orderMethod[0] ) {
+				case 'category':
+					//Count one more page in this heading
+					$headingCount = 1;
+
+					if ( isset( self::$headings[$row['cl_to']] ) ) {
+						$headingCount = intval( self::$headings[$row['cl_to']] ) + 1;
+					}
+
+					self::$headings[$row['cl_to']] = $headingCount;
+
+					//uncategorized page (used if ordermethod=category,...)
+					if ( empty( $row['cl_to'] ) ) {
+						$message = wfMessage( 'uncategorizedpages' );
+
+						return "[[:Special:Uncategorizedpages|{$message}]]";
+					} else {
+						$rowName = str_replace( '_', ' ', $row['cl_to'] );
+
+						return "[[:Category:{$row['cl_to']}|{$rowName}]]";
+					}
+
+				case 'user':
+					$headingCount = 1;
+					if ( isset( self::$headings[$row['rev_user_text']] ) ) {
+						$headingCount = self::$headings[$row['rev_user_text']] + 1;
+					}
+
+					self::$headings[$row['rev_user_text']] = $headingCount;
+
+					return "[[User:{$row['rev_user_text']}|{$row['rev_user_text']}]]";
+			}
+		}
+
+		return null;
 	}
 
 	/**
