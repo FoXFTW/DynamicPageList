@@ -10,10 +10,11 @@
 
 namespace DPL;
 
+use Article as WikiArticle;
 use MWException;
 use Title;
 
-class Article {
+class Article extends WikiArticle {
 	/**
 	 * Article Headings - Maps heading to count (# of pages under each heading).
 	 *
@@ -267,7 +268,7 @@ class Article {
 				$article->mComment = $revisionData['comment'];
 			}
 
-			$timestamp = static::getTimestamp( $row );
+			$timestamp = static::getTimestampFromRow( $row );
 			if ( !is_null( $timestamp ) ) {
 				$article->mDate = $timestamp;
 			}
@@ -300,7 +301,7 @@ class Article {
 			}
 
 			// CATEGORY LINKS FROM CURRENT PAGE
-			$categories = static::getCategories( $row );
+			$categories = static::getCategoriesFromRow( $row );
 			if ( !empty( $categories ) ) {
 				$article->mCategoryLinks = $categories['links'];
 				$article->mCategoryTexts = $categories['texts'];
@@ -484,18 +485,18 @@ class Article {
 	 * @param array $row
 	 * @return mixed|null
 	 */
-	private static function getTimestamp( array $row ) {
+	private static function getTimestampFromRow( array $row ) {
 		$addPageTouchedDate = static::$parameters->getParameter( 'addpagetoucheddate' );
 		$addFirstCategoryDate = static::$parameters->getParameter( 'addfirstcategorydate' );
 		$addEditDate = static::$parameters->getParameter( 'addeditdate' );
 
-		if ( !is_null( $addPageTouchedDate ) ) {
+		if ( $addPageTouchedDate ) {
 			return $row['page_touched'];
-		} elseif ( !is_null( $addFirstCategoryDate ) ) {
+		} elseif ( $addFirstCategoryDate ) {
 			return $row['cl_timestamp'];
-		} elseif ( !is_null( $addEditDate ) && isset( $row['rev_timestamp'] ) ) {
+		} elseif ( $addEditDate && isset( $row['rev_timestamp'] ) ) {
 			return $row['rev_timestamp'];
-		} elseif ( !is_null( $addEditDate ) && isset( $row['page_touched'] ) ) {
+		} elseif ( $addEditDate && isset( $row['page_touched'] ) ) {
 			return $row['page_touched'];
 		}
 
@@ -511,7 +512,8 @@ class Article {
 	 */
 	private static function getContributionAndContributor( array $row ) {
 		$addContribution = static::$parameters->getParameter( 'addcontribution' );
-		if ( !is_null( $addContribution ) ) {
+
+		if ( $addContribution ) {
 			$stars = '*****************';
 
 			return [
@@ -537,7 +539,8 @@ class Article {
 		$addUser = static::$parameters->getParameter( 'adduser' );
 		$addAuthor = static::$parameters->getParameter( 'addauthor' );
 		$addLastEditor = static::$parameters->getParameter( 'addlasteditor' );
-		if ( !is_null( $addUser ) || !is_null( $addAuthor ) || !is_null( $addLastEditor ) ) {
+
+		if ( $addUser || $addAuthor || $addLastEditor ) {
 			return [
 				'link' => "[[User:{$row['rev_user_text']}|{$row['rev_user_text']}]]",
 				'user' => $row['rev_user_text'],
@@ -554,10 +557,10 @@ class Article {
 	 * @param array $row
 	 * @return array
 	 */
-	private static function getCategories( array $row ) {
+	private static function getCategoriesFromRow( array $row ) {
 		$addCategories = static::$parameters->getParameter( 'addcategories' );
 
-		if ( !is_null( $addCategories ) && isset( $row['cats'] ) ) {
+		if ( $addCategories && isset( $row['cats'] ) ) {
 			$artCatNames = explode( ' | ', $row['cats'] );
 			$categories = [
 				'links' => [],
