@@ -9,14 +9,15 @@
  * @author w:de:Benutzer:Unendlich
  * @author m:User:Dangerman <cyril.dangerville@gmail.com>
  * @author m:User:Algorithmix <gero.scholz@gmx.de>
+ * @author m:User:FoXFTW <foxftw@octofox.de>
  * @license http://opensource.org/licenses/gpl-license.php GNU Public License
  *
  */
 
-use \DPL\Parse;
-use \DPL\Config;
-use \DPL\Variables;
-use \DPL\LST;
+use DPL\Config;
+use DPL\LST;
+use DPL\Parse;
+use DPL\Variables;
 
 class DynamicPageListHooks {
 	public static $fixedCategories = [];
@@ -76,6 +77,7 @@ class DynamicPageListHooks {
 		$parser->setFunctionHook( 'dpl', [ __CLASS__, 'dplParserFunction' ] );
 		$parser->setFunctionHook( 'dplnum', [ __CLASS__, 'dplNumParserFunction' ] );
 		$parser->setFunctionHook( 'dplvar', [ __CLASS__, 'dplVarParserFunction' ] );
+		$parser->setFunctionHook( 'dplarray', [ __CLASS__, 'dplArrayParserFunction' ] );
 		$parser->setFunctionHook( 'dplreplace', [ __CLASS__, 'dplReplaceParserFunction' ] );
 		$parser->setFunctionHook( 'dplchapter', [ __CLASS__, 'dplChapterParserFunction' ] );
 		$parser->setFunctionHook( 'dplmatrix', [ __CLASS__, 'dplMatrixParserFunction' ] );
@@ -306,7 +308,7 @@ class DynamicPageListHooks {
 	public static function dplVarParserFunction( Parser &$parser, $cmd ) {
 		$args = func_get_args();
 
-		// Unset Parser and $cmd as they are not used in set/getVar
+		// Unset Parser and $cmd as they are not used
 		array_shift( $args );
 		array_shift( $args );
 
@@ -315,13 +317,49 @@ class DynamicPageListHooks {
 			array_shift( $args );
 		}
 
-		if ( $cmd === 'set' ) {
-			Variables::setVar( $args );
-		} elseif ( $cmd === 'default' ) {
-			Variables::setVarDefault( $args );
+		switch ( $cmd ) {
+			case 'set':
+				Variables::setVar( $args );
+
+				return null;
+
+			case 'default':
+				Variables::setVarDefault( $args );
+
+				return null;
 		}
 
 		return Variables::getVar( $cmd );
+	}
+
+	/**
+	 * @param Parser $parser
+	 * @param string $cmd
+	 * @return mixed|string
+	 */
+	public static function dplArrayParserFunction( Parser &$parser, $cmd ) {
+		$args = func_get_args();
+
+		// Unset Parser and $cmd as they are not used
+		array_shift( $args );
+		array_shift( $args );
+
+		// Unset First empty Argument for compatibility reasons
+		if ( empty( $args[0] ) ) {
+			array_shift( $args );
+		}
+
+		switch ( $cmd ) {
+			case 'set':
+				Variables::setArray( $args );
+
+				return null;
+
+			case 'print':
+				return Variables::printArray( $args );
+		}
+
+		return Variables::dumpArray( $cmd );
 	}
 
 	/**
@@ -331,7 +369,9 @@ class DynamicPageListHooks {
 	 * @param string $replace
 	 * @return null|string|string[]
 	 */
-	public static function dplReplaceParserFunction( Parser &$parser, $text, $pat = '', $replace = '' ) {
+	public static function dplReplaceParserFunction(
+		Parser &$parser, $text, $pat = '', $replace = ''
+	) {
 		if ( $text == '' || $pat == '' ) {
 			return '';
 		}
@@ -384,8 +424,8 @@ class DynamicPageListHooks {
 	 * @return mixed
 	 */
 	public static function dplChapterParserFunction(
-		Parser &$parser, $text = '', $heading = ' ', $maxLength = - 1, $page = '?page?', $link = 'default',
-		$trim = false
+		Parser &$parser, $text = '', $heading = ' ', $maxLength = - 1, $page = '?page?',
+		$link = 'default', $trim = false
 	) {
 		$output =
 			LST::extractHeadingFromText( $parser, $page, '?title?', $text, $heading, '',
