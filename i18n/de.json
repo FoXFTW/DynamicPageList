@@ -30,5 +30,6 @@
     "dpl_log_19": "Warnung: 'debug=$0' steht nicht an erster Stelle in der DPL-Anweisung. Die Einstellung wird erst wirksam, nachdem die vorausgehenden Parameter geprüft und verarbeitet sind.",
     "dpl_log_20": "Warnung: Endlosschleife beim Inkludieren von Inhalten der Seite '$0'.",
     "dpl_log_21": "Datenbank-Abfrage: <code>$0</code>",
+    "dpl_log_24": "Fehler: Die erstelle Datenbankabfrage ergab einen Fehler.<br><pre>$1</pre>",
     "dpl_articlecount": "Diese Gruppe enthält {{PLURAL:$1|einen|$1}} Artikel."
 }
