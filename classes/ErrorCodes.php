@@ -1,9 +1,13 @@
 <?php
 /**
- * User: Hannes
- * Date: 13.01.2018
- * Time: 15:28
- */
+ * DynamicPageList3
+ * DPL ErrorCodes Class
+ *
+ * @author FoXFTW
+ * @license GPL
+ * @package DynamicPageList3
+ *
+ **/
 
 namespace DPL;
 
