@@ -28,62 +28,49 @@ class Variables {
 
 	/**
 	 * expects pairs of 'variable name' and 'value'
-	 * if the first parameter is empty it will be ignored {{#vardefine:|a|b}} is the same as {{#vardefine:a|b}}
+	 * {{#dplvar:set|Key|Value}}
+	 * {{#dplvar:set|Key|Value|Key2|Value2|...}}
 	 *
-	 * @param array $arg
-	 * @return string
+	 * @param array $args Array with Key, Value pairs
+	 * @return void
 	 */
-	public static function setVar( $arg ) {
-		$numArgs = count( $arg );
+	public static function setVar( $args ) {
+		for ( $i = 0; $i < count( $args ); $i += 2 ) {
+			$key = $args[$i];
+			$valueId = $i + 1;
 
-		if ( $numArgs >= 3 && $arg[2] == '' ) {
-			$start = 3;
-		} else {
-			$start = 2;
-		}
-
-		for ( $i = $start; $i < $numArgs; $i ++ ) {
-			$var = $arg[$i];
-
-			if ( ++ $i <= $numArgs - 1 ) {
-				self::$memoryVar[$var] = $arg[$i];
+			if ( isset( $args[$valueId] ) ) {
+				static::$memoryVar[$key] = $args[$valueId];
 			} else {
-				self::$memoryVar[$var] = '';
+				static::$memoryVar[$key] = '';
 			}
 		}
-
-		return '';
 	}
 
 	/**
-	 * @param array $arg
-	 * @return string
+	 * Assigns the value only if the variable is empty / has not been used so far
+	 * Only assigns ONE Key, Value Pair
+	 * {{#dplvar:default|Key|Value}}
+	 *
+	 * @param array $args Array with ONE Key, Value Pair
+	 * @return void
 	 */
-	public static function setVarDefault( $arg ) {
-		$numArgs = count( $arg );
-
-		if ( $numArgs > 3 ) {
-			$value = $arg[3];
-		} else {
-			return '';
+	public static function setVarDefault( $args ) {
+		if ( count( $args ) === 2 ) {
+			if ( !array_key_exists( $args[0], static::$memoryVar ) ||
+			     empty( static::$memoryVar[$args[0]] ) ) {
+				static::$memoryVar[$args[0]] = $args[1];
+			}
 		}
-
-		$var = $arg[2];
-
-		if ( !array_key_exists( $var, self::$memoryVar ) || self::$memoryVar[$var] == '' ) {
-			self::$memoryVar[$var] = $value;
-		}
-
-		return '';
 	}
 
 	/**
-	 * @param $var
+	 * @param $key
 	 * @return mixed|string
 	 */
-	public static function getVar( $var ) {
-		if ( array_key_exists( $var, self::$memoryVar ) ) {
-			return self::$memoryVar[$var];
+	public static function getVar( $key ) {
+		if ( array_key_exists( $key, static::$memoryVar ) ) {
+			return static::$memoryVar[$key];
 		}
 
 		return '';
@@ -109,13 +96,13 @@ class Variables {
 		}
 
 		if ( $value == '' ) {
-			self::$memoryArray[$var] = [];
+			static::$memoryArray[$var] = [];
 
 			return null;
 		}
 
 		if ( $delimiter == '' ) {
-			self::$memoryArray[$var] = [
+			static::$memoryArray[$var] = [
 				$value,
 			];
 
@@ -127,9 +114,9 @@ class Variables {
 			$delimiter = '/\s*' . $delimiter . '\s*/';
 		}
 
-		self::$memoryArray[$var] = preg_split( $delimiter, $value );
+		static::$memoryArray[$var] = preg_split( $delimiter, $value );
 
-		return "value={$value}, delimiter={$delimiter}," . count( self::$memoryArray[$var] );
+		return "value={$value}, delimiter={$delimiter}," . count( static::$memoryArray[$var] );
 	}
 
 	/**
@@ -147,8 +134,8 @@ class Variables {
 		$text = " array {$var} = {";
 		$n = 0;
 
-		if ( array_key_exists( $var, self::$memoryArray ) ) {
-			foreach ( self::$memoryArray[$var] as $value ) {
+		if ( array_key_exists( $var, static::$memoryArray ) ) {
+			foreach ( static::$memoryArray[$var] as $value ) {
 				if ( $n ++ > 0 ) {
 					$text .= ', ';
 				}
@@ -174,11 +161,11 @@ class Variables {
 			return '';
 		}
 
-		if ( !array_key_exists( $var, self::$memoryArray ) ) {
+		if ( !array_key_exists( $var, static::$memoryArray ) ) {
 			return '';
 		}
 
-		$values = self::$memoryArray[$var];
+		$values = static::$memoryArray[$var];
 		$rendered_values = [];
 
 		foreach ( $values as $v ) {

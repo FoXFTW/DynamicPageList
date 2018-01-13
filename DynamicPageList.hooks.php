@@ -306,10 +306,19 @@ class DynamicPageListHooks {
 	public static function dplVarParserFunction( Parser &$parser, $cmd ) {
 		$args = func_get_args();
 
-		if ( $cmd == 'set' ) {
-			return Variables::setVar( $args );
-		} elseif ( $cmd == 'default' ) {
-			return Variables::setVarDefault( $args );
+		// Unset Parser and $cmd as they are not used in set/getVar
+		array_shift( $args );
+		array_shift( $args );
+
+		// Unset First empty Argument for compatibility reasons
+		if ( empty( $args[0] ) ) {
+			array_shift( $args );
+		}
+
+		if ( $cmd === 'set' ) {
+			Variables::setVar( $args );
+		} elseif ( $cmd === 'default' ) {
+			Variables::setVarDefault( $args );
 		}
 
 		return Variables::getVar( $cmd );
