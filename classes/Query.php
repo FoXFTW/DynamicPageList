@@ -61,13 +61,6 @@ class Query {
 	private $sqlQuery = '';
 
 	/**
-	 * Selected Fields - An array to look up keys against for speed optimization.
-	 *
-	 * @var array
-	 */
-	private $selectedFields = [];
-
-	/**
 	 * Prefixed and escaped table names.
 	 *
 	 * @var array
@@ -145,16 +138,34 @@ class Query {
 	private $foundRows = 0;
 
 	/**
+	 * Used in buildAndSelect
+	 *
+	 * @var array
+	 */
+	private $queryOptions = [];
+
+	/**
+	 * DB Type
+	 *
+	 * @var string
+	 */
+	private $dbType;
+
+	/**
 	 * Main Constructor
 	 *
 	 * @param \DPL\Parameters $parameters Parameters
 	 */
 	public function __construct( Parameters $parameters ) {
+		global $wgDBtype;
+
 		$this->parameters = $parameters;
 
 		$this->tableNames = self::getTableNames();
 
 		$this->dbr = wfGetDB( DB_SLAVE );
+
+		$this->dbType = $wgDBtype;
 	}
 
 	/**
@@ -195,31 +206,46 @@ class Query {
 	 */
 	public static function getSubcategories( $categoryName, $depth = 1 ) {
 		$dbr = wfGetDB( DB_SLAVE );
+		$categories = [];
 
 		if ( $depth > 2 ) {
 			// Hard constrain depth because lots of recursion is bad.
 			$depth = 2;
 		}
 
-		$categories = [];
+		$tables = [
+			'page',
+			'categorylinks',
+		];
 
-		$result = $dbr->select( [ 'page', 'categorylinks' ], [ 'page_title' ], [
-			'page_namespace' => intval( NS_CATEGORY ),
+		$vars = [
+			'page_title',
+		];
+
+		$conditions = [
+			'page_namespace' => NS_CATEGORY,
 			'categorylinks.cl_to' => str_replace( ' ', '_', $categoryName ),
-		], __METHOD__, [ 'DISTINCT' ], [
+		];
+
+		$options = [
+			'DISTINCT',
+		];
+
+		$join = [
 			'categorylinks' => [
 				'INNER JOIN',
 				'page.page_id = categorylinks.cl_from',
 			],
-		] );
+		];
+
+		$result = $dbr->select( $tables, $vars, $conditions, __METHOD__, $options, $join );
 
 		while ( $row = $result->fetchRow() ) {
 			$categories[] = $row['page_title'];
 
 			if ( $depth > 1 ) {
-				$categories =
-					array_merge( $categories,
-						self::getSubcategories( $row['page_title'], $depth - 1 ) );
+				$subCategories = self::getSubcategories( $row['page_title'], $depth - 1 );
+				$categories = array_merge( $categories, $subCategories );
 			}
 		}
 
@@ -237,10 +263,75 @@ class Query {
 	 * @throws \MWException
 	 */
 	public function buildAndSelect( $calcRows = false ) {
-		global $wgNonincludableNamespaces;
+		$this->setDefaultQueryOptions( $calcRows );
+		$this->processParameters();
+		$this->excludeNonIncludableNamespaces();
 
-		$options = [];
+		if ( $this->openReferencesEnabled() ) {
+			$this->setOpenReferencesParameters();
+		} else {
+			$this->setOpenReferencesDisabledParameters();
+		}
 
+		try {
+			$this->setSqlQuery();
+			$result = $this->executeSqlQuery();
+
+			if ( $calcRows ) {
+				$this->setFoundRows();
+			}
+		}
+		catch ( Exception $e ) {
+			throw new MWException( __METHOD__ . ": " . wfMessage( 'dpl_query_error', DPL_VERSION,
+					$this->dbr->lastError() )->text() );
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Sets Query Offset if set
+	 * Sets Query Limit if set
+	 * If 'goal' = 'categories' Distinct will be set
+	 *
+	 * @param bool $calcRows
+	 */
+	private function setDefaultQueryOptions( $calcRows = false ) {
+		if ( $this->offset !== false ) {
+			$this->queryOptions['OFFSET'] = $this->offset;
+		}
+
+		if ( $this->limit !== false ) {
+			$this->queryOptions['LIMIT'] = $this->limit;
+		} elseif ( $this->offset !== false && $this->limit === false ) {
+			$this->queryOptions['LIMIT'] = $this->parameters->getData( 'count' )['default'];
+		}
+
+
+		if ( $this->goalParameterIsCategories() ) {
+			$this->queryOptions[] = 'DISTINCT';
+		} else {
+			if ( $calcRows ) {
+				$this->queryOptions[] = 'SQL_CALC_FOUND_ROWS';
+			}
+
+			if ( $this->distinct ) {
+				$this->queryOptions[] = 'DISTINCT';
+			}
+		}
+	}
+
+	/**
+	 * @return bool if Parameter 'goal' = 'categories'
+	 */
+	private function goalParameterIsCategories() {
+		return $this->parameters->getParameter( 'goal' ) === 'categories';
+	}
+
+	/**
+	 * @throws \MWException
+	 */
+	private function processParameters() {
 		$parameters = $this->parameters->getAllParameters();
 
 		foreach ( $parameters as $parameter => $option ) {
@@ -261,136 +352,129 @@ class Query {
 
 			$this->parametersProcessed[$parameter] = true;
 		}
+	}
 
-		if ( !$this->parameters->getParameter( 'openreferences' ) ) {
-			// Add things that are always part of the query.
-			$this->addTable( 'page', $this->tableNames['page'] );
-			$this->addSelect( [
-				'page_namespace' => $this->tableNames['page'] . '.page_namespace',
-				'page_id' => $this->tableNames['page'] . '.page_id',
-				'page_title' => $this->tableNames['page'] . '.page_title',
-			] );
-		}
+	/**
+	 * Always add nonincludeable namespaces.
+	 */
+	private function excludeNonIncludableNamespaces() {
+		global $wgNonincludableNamespaces;
 
-		// Always add nonincludeable namespaces.
 		if ( is_array( $wgNonincludableNamespaces ) && count( $wgNonincludableNamespaces ) ) {
 			$this->addNotWhere( [
 				$this->tableNames['page'] . '.page_namespace' => $wgNonincludableNamespaces,
 			] );
 		}
+	}
 
-		if ( $this->offset !== false ) {
-			$options['OFFSET'] = $this->offset;
-		}
-
-		if ( $this->limit !== false ) {
-			$options['LIMIT'] = $this->limit;
-		} elseif ( $this->offset !== false && $this->limit === false ) {
-			$options['LIMIT'] = $this->parameters->getData( 'count' )['default'];
-		}
-
-		if ( $this->parameters->getParameter( 'openreferences' ) ) {
-			if ( count( $this->parameters->getParameter( 'imagecontainer' ) ) > 0 ) {
-				// $sSqlSelectFrom = $sSqlCl_to.'ic.il_to, '.$sSqlSelPage."ic.il_to AS sortkey".'
-				// FROM '.$this->tableNames['imagelinks'].' AS ic';
-				$tables = [
-					'ic' => 'imagelinks',
-				];
+	/**
+	 * Add a where clause to the output that uses NOT IN or !=.
+	 *
+	 * @param array $where Field => Value(s)
+	 * @return void
+	 */
+	public function addNotWhere( array $where ) {
+		foreach ( $where as $field => $values ) {
+			if ( count( $values ) > 1 ) {
+				$query = "NOT IN({$this->dbr->makeList( $values )})";
 			} else {
-				// $sSqlSelectFrom = "SELECT $sSqlCalcFoundRows $sSqlDistinct ".$sSqlCl_to
-				//.'pl_namespace, pl_title'.$sSqlSelPage.$sSqlSortkey.' FROM '.$this->tableNames['pagelinks'];
-				$this->addSelect( [
-					'pl_namespace',
-					'pl_title',
-				] );
-				$tables = [
-					'pagelinks',
-				];
-			}
-		} else {
-			$tables = $this->tables;
-
-			if ( count( $this->groupBy ) ) {
-				$options['GROUP BY'] = $this->groupBy;
+				$query = "!= {$this->dbr->addQuotes(current($values))}";
 			}
 
-			if ( count( $this->orderBy ) ) {
-				$options['ORDER BY'] = $this->orderBy;
-
-				foreach ( $options['ORDER BY'] as $key => $value ) {
-					$options['ORDER BY'][$key] .= " " . $this->direction;
-				}
-			}
+			$this->where[] = "{$field} {$query}";
 		}
+	}
 
-		if ( $this->parameters->getParameter( 'goal' ) == 'categories' ) {
-			$categoriesGoal = true;
-			$select = [
-				$this->tableNames['page'] . '.page_id',
+	/**
+	 * @return bool true if openreferences is true
+	 */
+	private function openReferencesEnabled() {
+		return $this->parameters->getParameter( 'openreferences' ) == true;
+	}
+
+	/**
+	 * @return void
+	 * @throws \MWException
+	 */
+	private function setOpenReferencesParameters() {
+		if ( count( $this->parameters->getParameter( 'imagecontainer' ) ) > 0 ) {
+			$this->tables = [
+				'ic' => 'imagelinks',
 			];
-			$options[] = 'DISTINCT';
 		} else {
-			if ( $calcRows ) {
-				$options[] = 'SQL_CALC_FOUND_ROWS';
-			}
+			$this->addSelect( [
+				'pl_namespace',
+				'pl_title',
+			] );
 
-			if ( $this->distinct ) {
-				$options[] = 'DISTINCT';
-			}
-
-			$categoriesGoal = false;
-			$select = $this->select;
+			$this->tables = [
+				'pagelinks',
+			];
 		}
+	}
 
-		$queryError = false;
-		$pageIds = [];
-		$result = '';
+	/**
+	 * Add a field to select.
+	 * Will ignore duplicate values if the exact same alias and exact same field are passed.
+	 *
+	 * @param array $fields Array of fields with the array key being the field alias.
+	 *  Leave the array key as a numeric index to not specify an alias.
+	 * @return void
+	 * @throws \MWException
+	 */
+	public function addSelect( array $fields ) {
+		foreach ( $fields as $alias => $field ) {
+			$this->checkOverwritingFieldAlias( $alias, $field );
 
-		try {
-			if ( $categoriesGoal ) {
-				$result =
-					$this->dbr->select( $tables, $select, $this->where, __METHOD__, $options,
-						$this->join );
-
-				while ( $row = $result->fetchRow() ) {
-					$pageIds[] = $row['page_id'];
+			if ( !array_key_exists( $alias, $this->select ) ) {
+				if ( !is_numeric( $alias ) ) {
+					$this->select[$alias] = $field;
+				} else {
+					$this->select[] = $field;
 				}
-
-				$sql = $this->dbr->selectSQLText( [
-					'clgoal' => 'categorylinks',
-				], [
-					'clgoal.cl_to',
-				], [
-					'clgoal.cl_from' => $pageIds,
-				], __METHOD__, [
-					'ORDER BY' => 'clgoal.cl_to ' . $this->direction,
-				] );
-			} else {
-				$sql =
-					$this->dbr->selectSQLText( $tables, $select, $this->where, __METHOD__, $options,
-						$this->join );
-			}
-
-			$this->sqlQuery = $sql;
-			$result = $this->dbr->query( $sql );
-
-			if ( $calcRows ) {
-				$calcRowsResult = $this->dbr->query( 'SELECT FOUND_ROWS() AS rowcount' );
-				$total = $this->dbr->fetchRow( $calcRowsResult );
-				$this->foundRows = intval( $total['rowcount'] );
-				$this->dbr->freeResult( $calcRowsResult );
 			}
 		}
-		catch ( Exception $e ) {
-			$queryError = true;
+	}
+
+	/**
+	 * In case of a code bug that is overwriting an existing field alias throw an exception.
+	 *
+	 * @param string $field
+	 * @param int|string $alias
+	 * @throws MWException
+	 */
+	private function checkOverwritingFieldAlias( $alias, $field ) {
+		if ( !is_numeric( $alias ) && array_key_exists( $alias, $this->select ) &&
+		     $this->select[$alias] !== $field ) {
+			throw new MWException( __METHOD__ .
+			                       ": Attempted to overwrite existing field alias `{$this->select[$alias]}` AS `{$alias}` with `{$field}` AS `{$alias}`." );
+		}
+	}
+
+	/**
+	 * Add things that are always part of the query.
+	 *
+	 * @throws MWException
+	 */
+	private function setOpenReferencesDisabledParameters() {
+		$this->addTable( 'page', $this->tableNames['page'] );
+		$this->addSelect( [
+			'page_namespace' => "{$this->tableNames['page']}.page_namespace",
+			'page_id' => "{$this->tableNames['page']}.page_id",
+			'page_title' => "{$this->tableNames['page']}.page_title",
+		] );
+
+		if ( !empty( $this->groupBy ) ) {
+			$this->queryOptions['GROUP BY'] = $this->groupBy;
 		}
 
-		if ( $queryError == true || $result === false ) {
-			throw new MWException( __METHOD__ . ": " . wfMessage( 'dpl_query_error', DPL_VERSION,
-					$this->dbr->lastError() )->text() );
-		}
+		if ( !empty( $this->orderBy ) ) {
+			$this->queryOptions['ORDER BY'] = $this->orderBy;
 
-		return $result;
+			foreach ( $this->queryOptions['ORDER BY'] as $key => $value ) {
+				$this->queryOptions['ORDER BY'][$key] .= " " . $this->direction;
+			}
+		}
 	}
 
 	/**
@@ -414,71 +498,100 @@ class Query {
 			$this->tables[$alias] = $this->dbr->tableName( $table );
 
 			return true;
-		} else {
-			return false;
 		}
+
+		return false;
 	}
 
 	/**
-	 * Add a field to select.
-	 * Will ignore duplicate values if the exact same alias and exact same field are passed.
-	 *
-	 * @param array $fields Array of fields with the array key being the field alias.
-	 *  Leave the array key as a numeric index to not specify an alias.
-	 * @return bool Success
-	 * @throws \MWException
+	 * Sets $this->sqlQuery to a specific query if 'goal' = 'categories'
 	 */
-	public function addSelect( array $fields ) {
-		foreach ( $fields as $alias => $field ) {
-			if ( !is_numeric( $alias ) && array_key_exists( $alias, $this->select ) &&
-			     $this->select[$alias] != $field ) {
-				// In case of a code bug that is overwriting an existing field alias throw an
-				// exception.
-
-				throw new MWException( __METHOD__ .
-				                       ": Attempted to overwrite existing field alias `{$this->select[$alias]}` AS `{$alias}` with `{$field}` AS `{$alias}`." );
-			}
-
-			// String alias and does not exist already.
-			if ( !is_numeric( $alias ) && !array_key_exists( $alias, $this->select ) ) {
-				$this->select[$alias] = $field;
-			}
-
-			// Speed up by not using in_array() or array_key_exists().  Toss the field names into
-			// their own array as keys => true to exploit a speedy look up with isset().
-			if ( is_numeric( $alias ) && !isset( $this->selectedFields[$field] ) ) {
-				$this->select[] = $field;
-				$this->selectedFields[$field] = true;
-			}
+	private function setSqlQuery() {
+		if ( $this->goalParameterIsCategories() ) {
+			$sql = $this->getSqlForCategoryGoal();
+		} else {
+			$sql =
+				$this->dbr->selectSQLText( $this->tables, $this->select, $this->where, __METHOD__,
+					$this->queryOptions, $this->join );
 		}
 
-		return true;
+		$this->sqlQuery = $sql;
 	}
 
 	/**
-	 * Add a where clause to the output that uses NOT IN or !=.
+	 * Generates the appropriate SQL-Query for 'goal' = 'categories'
 	 *
-	 * @param array $where Field => Value(s)
-	 * @return bool Success
+	 * @return string The generated SQL-Query
+	 */
+	private function getSqlForCategoryGoal() {
+		$pageIds = $this->getPageIdsFromPageTable();
+
+		$table = [
+			'clgoal' => 'categorylinks',
+		];
+
+		$vars = [ 'clgoal.cl_to' ];
+
+		$condition = [
+			'clgoal.cl_from' => $pageIds,
+		];
+
+		$options = [
+			'ORDER BY' => 'clgoal.cl_to ' . $this->direction,
+		];
+
+		return $this->dbr->selectSQLText( $table, $vars, $condition, __METHOD__, $options );
+	}
+
+	/**
+	 * @return array
+	 */
+	private function getPageIdsFromPageTable() {
+		$pageIds = [];
+
+		$select = [
+			$this->tableNames['page'] . '.page_id',
+		];
+
+		$result =
+			$this->dbr->select( $this->tables, $select, $this->where, __METHOD__,
+				$this->queryOptions, $this->join );
+
+		while ( $row = $result->fetchRow() ) {
+			$pageIds[] = $row['page_id'];
+		}
+
+		return $pageIds;
+	}
+
+	/**
+	 * Executes $this->sqlQuery if set
+	 *
+	 * @return bool|\Wikimedia\Rdbms\IResultWrapper|\Wikimedia\Rdbms\ResultWrapper
 	 * @throws \MWException
 	 */
-	public function addNotWhere( $where ) {
-		if ( empty( $where ) ) {
-			throw new MWException( __METHOD__ . ': An empty not where clause was passed.' );
+	private function executeSqlQuery() {
+		if ( empty( $this->sqlQuery ) ) {
+			throw new MWException( __METHOD__ . ' sqlQuery is not set!' );
 		}
 
-		if ( is_array( $where ) ) {
-			foreach ( $where as $field => $values ) {
-				$this->where[] =
-					$field .
-					( count( $values ) > 1 ? ' NOT IN(' . $this->dbr->makeList( $values ) . ')'
-						: ' != ' . $this->dbr->addQuotes( current( $values ) ) );
-			}
-		} else {
-			throw new MWException( __METHOD__ . ': An invalid not where clause was passed.' );
+		$result = $this->dbr->query( $this->sqlQuery );
+
+		if ( $result === false ) {
+			throw new MWException( __METHOD__ . ' Result is empty' );
 		}
 
-		return true;
+		return $result;
+	}
+
+	/**
+	 * Sets foundRows
+	 */
+	private function setFoundRows() {
+		$calcRowsResult = $this->dbr->query( 'SELECT FOUND_ROWS() AS rowcount' );
+		$total = $this->dbr->fetchRow( $calcRowsResult );
+		$this->foundRows = intval( $total['rowcount'] );
+		$this->dbr->freeResult( $calcRowsResult );
 	}
 
 	/**
@@ -1335,10 +1448,14 @@ class Query {
 
 			$where = '(' . implode( ' AND ', $ands ) . ')';
 		} else {
-			$where =
-				'CONCAT(page_namespace,page_title) NOT IN (SELECT CONCAT(' .
-				$this->tableNames['pagelinks'] . '.pl_namespace,' . $this->tableNames['pagelinks'] .
-				'.pl_title) FROM ' . $this->tableNames['pagelinks'] . ' WHERE ';
+			if ( $this->dbType === 'sqlite' ) {
+				$where =
+					"page_namespace || page_title NOT IN (SELECT {$this->tableNames['pagelinks']}.pl_namespace || {$this->tableNames['pagelinks']}.pl_title FROM {$this->tableNames['pagelinks']} WHERE ";
+			} else {
+				$where =
+					"CONCAT(page_namespace,page_title) NOT IN (SELECT CONCAT
+					({$this->tableNames['pagelinks']}.pl_namespace, {$this->tableNames['pagelinks']}.pl_title) FROM {$this->tableNames['pagelinks']} WHERE ";
+			}
 			$ors = [];
 
 			foreach ( $option as $linkGroup ) {
@@ -1660,7 +1777,7 @@ class Query {
 	 * @throws \MWException
 	 */
 	private function _ordermethod( $option ) {
-		global $wgContLang, $wgDBtype;
+		global $wgContLang;
 
 		if ( $this->parameters->getParameter( 'goal' ) == 'categories' ) {
 			// No order methods for returning categories.
@@ -1738,8 +1855,7 @@ class Query {
 							if ( !isset( $this->join['hit_counter'] ) ) {
 								$this->addJoin( 'hit_counter', [
 									"LEFT JOIN",
-									"hit_counter.page_id = " . $this->tableNames['page'] .
-									'.page_id',
+									"hit_counter.page_id = {$this->tableNames['page']}.page_id",
 								] );
 							}
 						}
@@ -1789,10 +1905,16 @@ class Query {
 
 				case 'pagesel':
 					$this->addOrderBy( 'sortkey' );
-					$this->addSelect( [
-						'sortkey' => 'CONCAT(pl.pl_namespace, pl.pl_title) ' .
-						             $this->getCollateSQL(),
-					] );
+					if ($this->dbType === 'sqlite') {
+						$select = [
+							'sortkey' => "pl.pl_namespace || pl.pl_title {$this->getCollateSQL()}",
+						];
+					} else {
+						$select = [
+							'sortkey' => "CONCAT(pl.pl_namespace, pl.pl_title) {$this->getCollateSQL()}",
+						];
+					}
+					$this->addSelect( $select );
 					break;
 
 				case 'pagetouched':
@@ -1810,9 +1932,13 @@ class Query {
 					$this->addOrderBy( 'sortkey' );
 					// If cl_sortkey is null (uncategorized page), generate a sortkey in the usual way (full page name, underscores replaced with spaces).
 					// UTF-8 created problems with non-utf-8 MySQL databases
-					$replaceConcat =
-						"REPLACE(CONCAT({$_namespaceIdToText}, " . $this->tableNames['page'] .
-						".page_title), '_', ' ')";
+					if ($this->dbType === 'sqlite') {
+						$replaceConcat =
+							"REPLACE({$_namespaceIdToText} || {$this->tableNames['page']}.page_title), '_', ' ')";
+					} else {
+						$replaceConcat =
+							"REPLACE(CONCAT({$_namespaceIdToText}, {$this->tableNames['page']}.page_title), '_', ' ')";
+					}
 
 					if ( count( $this->parameters->getParameter( 'category' ) ) +
 					     count( $this->parameters->getParameter( 'notcategory' ) ) > 0 ) {
@@ -1820,15 +1946,13 @@ class Query {
 							$this->parameters->getParameter( 'ordermethod' ) ) ) {
 
 							$this->addSelect( [
-								'sortkey' => "IFNULL(cl_head.cl_sortkey, {$replaceConcat}) " .
-								             $this->getCollateSQL(),
+								'sortkey' => "IFNULL(cl_head.cl_sortkey, {$replaceConcat}) {$this->getCollateSQL()}",
 							] );
 						} else {
 							// This runs on the assumption that at least one category parameter
 							// was used and that numbering starts at 1.
 							$this->addSelect( [
-								'sortkey' => "IFNULL(cl1.cl_sortkey, {$replaceConcat}) " .
-								             $this->getCollateSQL(),
+								'sortkey' => "IFNULL(cl1.cl_sortkey, {$replaceConcat}) {$this->getCollateSQL()}",
 							] );
 						}
 					} else {
@@ -1846,8 +1970,7 @@ class Query {
 					}
 
 					$this->addSelect( [
-						'sortkey' => "{$this->tableNames['page']}.page_title " .
-						             $this->getCollateSQL(),
+						'sortkey' => "{$this->tableNames['page']}.page_title {$this->getCollateSQL()}",
 					] );
 					break;
 
@@ -1855,38 +1978,25 @@ class Query {
 					$this->addOrderBy( 'sortkey' );
 
 					if ( $this->parameters->getParameter( 'openreferences' ) ) {
-						if ( $wgDBtype === 'sqlite' ) {
+						if ( $this->dbType === 'sqlite' ) {
 							$select = [
-								'sortkey' => "REPLACE(CASE WHEN(pl_namespace  = 0) THEN '' ELSE " .
-								             $_namespaceIdToText .
-								             " || ':' END , pl_title) || '_', ' ') " .
-								             $this->getCollateSQL(),
+								'sortkey' => "REPLACE(CASE WHEN(pl_namespace = 0) THEN '' ELSE {$_namespaceIdToText} || ':' END, pl_title) || '_', ' ') {$this->getCollateSQL()}",
 							];
 						} else {
 							$select = [
-								'sortkey' => "REPLACE(CONCAT(IF(pl_namespace  =0, '', CONCAT(" .
-								             $_namespaceIdToText .
-								             ", ':')), pl_title), '_', ' ') " .
-								             $this->getCollateSQL(),
+								'sortkey' => "REPLACE(CONCAT(IF(pl_namespace = 0, '', CONCAT({$_namespaceIdToText}, ':')), pl_title), '_', ' ') {$this->getCollateSQL()}",
 							];
+
 						}
 						$this->addSelect( $select );
 					} else {
-						if ( $wgDBtype === 'sqlite' ) {
+						if ( $this->dbType === 'sqlite' ) {
 							$select = [
-								'sortkey' => "REPLACE(CASE WHEN(" . $this->tableNames['page'] .
-								             ".page_namespace = 0) THEN '' ELSE " .
-								             $_namespaceIdToText . " || ':' END, " .
-								             $this->tableNames['page'] .
-								             ".page_title || '_', ' ') " . $this->getCollateSQL(),
+								'sortkey' => "REPLACE(CASE WHEN({$this->tableNames['page']}.page_namespace = 0) THEN '' ELSE {$_namespaceIdToText} || ':' END, {$this->tableNames['page']}.page_title || '_', ' ') {$this->getCollateSQL()}",
 							];
 						} else {
 							$select = [
-								'sortkey' => "REPLACE(CONCAT(IF(" . $this->tableNames['page'] .
-								             ".page_namespace = 0, '', CONCAT(" .
-								             $_namespaceIdToText . ", ':')), " .
-								             $this->tableNames['page'] .
-								             ".page_title), '_', ' ') " . $this->getCollateSQL(),
+								'sortkey' => "REPLACE(CONCAT(IF({$this->tableNames['page']}.page_namespace = 0, '', CONCAT({$_namespaceIdToText}, ':')), {$this->tableNames['page']}.page_title), '_', ' ') {$this->getCollateSQL()}",
 							];
 						}
 						$this->addSelect( $select );
