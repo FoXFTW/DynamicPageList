@@ -388,6 +388,8 @@ class Article extends WikiArticle {
 
 	/**
 	 * Sets mExternalLink if 'el_to' is set in db row
+	 *
+	 * @return void
 	 */
 	private static function setExternalLinkTo() {
 		if ( isset( static::$dbRow['el_to'] ) ) {
@@ -397,6 +399,8 @@ class Article extends WikiArticle {
 
 	/**
 	 * Sets mCounter if 'page_counter' is set in db row
+	 *
+	 * @return void
 	 */
 	private static function setPageCounter() {
 		if ( isset( static::$dbRow['page_counter'] ) ) {
@@ -647,6 +651,8 @@ class Article extends WikiArticle {
 
 	/**
 	 * Reset dbRow, Parameter Title and Article Object
+	 *
+	 * @return void
 	 */
 	private static function resetTemporaryStaticVars() {
 		static::$dbRow = null;
