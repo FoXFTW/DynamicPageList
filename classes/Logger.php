@@ -92,19 +92,19 @@ class Logger {
 	 */
 	private function getMessageTextForErrorId( $errorId, array $messageParameters ) {
 		switch ( $errorId ) {
-			case DynamicPageListHooks::FATAL_TOOMANYCATS:
+			case ErrorCodes::FATAL_TOO_MANY_CATEGORIES:
 				$text = wfMessage( 'intersection_toomanycats', $messageParameters )->text();
 				break;
 
-			case DynamicPageListHooks::FATAL_TOOFEWCATS:
+			case ErrorCodes::FATAL_TOO_FEW_CATEGORIES:
 				$text = wfMessage( 'intersection_toofewcats', $messageParameters )->text();
 				break;
 
-			case DynamicPageListHooks::WARN_NORESULTS:
+			case ErrorCodes::WARN_NO_RESULTS:
 				$text = wfMessage( 'intersection_noresults', $messageParameters )->text();
 				break;
 
-			case DynamicPageListHooks::FATAL_NOSELECTION;
+			case ErrorCodes::FATAL_NO_SELECTION;
 				$text = wfMessage( 'intersection_noincludecats', $messageParameters )->text();
 				break;
 
