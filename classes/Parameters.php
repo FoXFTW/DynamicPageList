@@ -167,8 +167,8 @@ class Parameters extends ParametersData {
 			}
 
 			// Booleans
-			if ( array_key_exists( 'boolean', $parameterData ) && $parameterData['boolean'] === true
-			) {
+			if ( array_key_exists( 'boolean', $parameterData ) &&
+			     $parameterData['boolean'] === true ) {
 				$option = $this->filterBoolean( $option );
 
 				if ( $option === null ) {
