@@ -289,8 +289,11 @@ class Parameters extends ParametersData {
 	 * @return mixed Option for specified parameter.
 	 */
 	public function getParameter( $parameter ) {
-		return array_key_exists( $parameter, $this->parameterOptions )
-			? $this->parameterOptions[$parameter] : null;
+		if (array_key_exists( $parameter, $this->parameterOptions )) {
+			return $this->parameterOptions[$parameter];
+		}
+
+		return null;
 	}
 
 	/**
