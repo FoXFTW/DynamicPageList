@@ -39,7 +39,7 @@ class Config {
 			throw new MWException( __METHOD__ . ": Invalid settings passed." );
 		}
 
-		self::$settings = array_merge( self::$settings, $settings );
+		self::$settings = $settings;
 	}
 
 	/**
