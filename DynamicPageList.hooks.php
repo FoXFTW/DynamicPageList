@@ -13,122 +13,12 @@
  *
  */
 
+use \DPL\Parse;
+use \DPL\Config;
+use \DPL\Variables;
+use \DPL\LST;
+
 class DynamicPageListHooks {
-	// FATAL
-	/**
-	 * $1: 'namespace' or 'notnamespace'
-	 * $2: wrong parameter given by user
-	 * $3: list of possible titles of namespaces (except pseudo-namespaces: Media, Special)
-	 */
-	const FATAL_WRONGNS = 1001;
-
-	/**
-	 * $1: linksto'
-	 * $2: the wrong parameter given by user
-	 */
-	const FATAL_WRONGLINKSTO = 1002;
-
-	/**
-	 * $1: max number of categories that can be included
-	 */
-	const FATAL_TOOMANYCATS = 1003;
-
-	/**
-	 * $1: min number of categories that have to be included
-	 */
-	const FATAL_TOOFEWCATS = 1004;
-
-	const FATAL_NOSELECTION = 1005;
-
-	const FATAL_CATDATEBUTNOINCLUDEDCATS = 1006;
-
-	const FATAL_CATDATEBUTMORETHAN1CAT = 1007;
-
-	const FATAL_MORETHAN1TYPEOFDATE = 1008;
-
-	/**
-	 * $1: param=val that is possible only with $1 as last 'ordermethod' parameter
-	 * $2: last 'ordermethod' parameter required for $0
-	 */
-	const FATAL_WRONGORDERMETHOD = 1009;
-
-	/**
-	 * $1: the number of arguments in includepage
-	 */
-	const FATAL_DOMINANTSECTIONRANGE = 1010;
-
-	/**
-	 * $1: prefix_dpl_clview where 'prefix' is the prefix of your mediawiki table names
-	 * $2: SQL query to create the prefix_dpl_clview on your mediawiki DB
-	 */
-	const FATAL_NOCLVIEW = 1011;
-
-	const FATAL_OPENREFERENCES = 1012;
-
-	const FATAL_MISSINGPARAMFUNCTION = 1022;
-
-	const FATAL_NOTPROTECTED = 1023;
-
-	const FATAL_SQLBUILDERROR = 1024;
-
-	// ERROR
-
-	// WARN
-	/**
-	 * $1: unknown parameter given by user
-	 * $2: list of DPL available parameters separated by ', '
-	 */
-	const WARN_UNKNOWNPARAM = 2013;
-
-	/**
-	 * $1: Parameter given by user
-	 */
-	const WARN_PARAMNOOPTION = 2022;
-
-	/**
-	 * $3: list of valid param values separated by ' | '
-	 */
-	const WARN_WRONGPARAM = 2014;
-
-	/**
-	 * $1: param name
-	 * $2: wrong param value given by user
-	 * $3: default param value used instead by program
-	 */
-	const WARN_WRONGPARAM_INT = 2015;
-
-	const WARN_NORESULTS = 2016;
-
-	const WARN_CATOUTPUTBUTWRONGPARAMS = 2017;
-
-	/**
-	 * $1: 'headingmode' value given by user
-	 * $2: value used instead by program (which means no heading)
-	 */
-	const WARN_HEADINGBUTSIMPLEORDERMETHOD = 2018;
-
-	/**
-	 * $1: 'log' value
-	 */
-	const WARN_DEBUGPARAMNOTFIRST = 2019;
-
-	/**
-	 * $1: title of page that creates an infinite transclusion loop
-	 */
-	const WARN_TRANSCLUSIONLOOP = 2020;
-
-	// INFO
-
-	// DEBUG
-	/**
-	 * $1: SQL query executed to generate the dynamic page list
-	 */
-	const DEBUG_QUERY = 3021;
-
-	// TRACE
-	// Output formatting
-	// $1: number of articles
-
 	static public $fixedCategories = [];
 
 	/**
@@ -176,7 +66,7 @@ class DynamicPageListHooks {
 		self::init();
 
 		//DPL offers the same functionality as Intersection.  So we register the <DynamicPageList> tag in case LabeledSection Extension is not installed so that the section markers are removed.
-		if ( \DPL\Config::getSetting( 'handleSectionTag' ) ) {
+		if ( Config::getSetting( 'handleSectionTag' ) ) {
 			$parser->setHook( 'section', [ __CLASS__, 'dplTag' ] );
 		}
 
@@ -200,7 +90,7 @@ class DynamicPageListHooks {
 	 * @throws \MWException
 	 */
 	private static function init() {
-		\DPL\Config::init();
+		Config::init();
 
 		if ( !isset( self::$createdLinks ) ) {
 			self::$createdLinks = [
@@ -282,9 +172,9 @@ class DynamicPageListHooks {
 		$saveCategories = [];
 		$saveImages = [];
 
-		$parse = new \DPL\Parse();
+		$parse = new Parse();
 
-		if ( \DPL\Config::getSetting( 'recursiveTagParse' ) ) {
+		if ( Config::getSetting( 'recursiveTagParse' ) ) {
 			$input = $parser->recursiveTagParse( $input, $frame );
 		}
 
@@ -367,7 +257,7 @@ class DynamicPageListHooks {
 			$input .= str_replace( "\n", "", $p1 ) . "\n";
 		}
 
-		$parse = new \DPL\Parse();
+		$parse = new Parse();
 		$dplResult = $parse->parse( $input, $parser, $reset, $eliminate, false );
 
 		return [ // parser needs to be coaxed to do further recursive processing
@@ -417,12 +307,12 @@ class DynamicPageListHooks {
 		$args = func_get_args();
 
 		if ( $cmd == 'set' ) {
-			return \DPL\Variables::setVar( $args );
+			return Variables::setVar( $args );
 		} elseif ( $cmd == 'default' ) {
-			return \DPL\Variables::setVarDefault( $args );
+			return Variables::setVarDefault( $args );
 		}
 
-		return \DPL\Variables::getVar( $cmd );
+		return Variables::getVar( $cmd );
 	}
 
 	/**
@@ -489,7 +379,7 @@ class DynamicPageListHooks {
 		$trim = false
 	) {
 		$output =
-			\DPL\LST::extractHeadingFromText( $parser, $page, '?title?', $text, $heading, '',
+			LST::extractHeadingFromText( $parser, $page, '?title?', $text, $heading, '',
 				$sectionHeading, true, $maxLength, $link, $trim );
 
 		return $output[0];
