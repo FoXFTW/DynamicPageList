@@ -1659,7 +1659,7 @@ class Query {
 	 * @throws \MWException
 	 */
 	private function _ordermethod( $option ) {
-		global $wgContLang;
+		global $wgContLang, $wgDBtype;
 
 		if ( $this->parameters->getParameter( 'goal' ) == 'categories' ) {
 			// No order methods for returning categories.
@@ -1817,6 +1817,7 @@ class Query {
 					     count( $this->parameters->getParameter( 'notcategory' ) ) > 0 ) {
 						if ( in_array( 'category',
 							$this->parameters->getParameter( 'ordermethod' ) ) ) {
+
 							$this->addSelect( [
 								'sortkey' => "IFNULL(cl_head.cl_sortkey, {$replaceConcat}) " .
 								             $this->getCollateSQL(),
@@ -1853,20 +1854,42 @@ class Query {
 					$this->addOrderBy( 'sortkey' );
 
 					if ( $this->parameters->getParameter( 'openreferences' ) ) {
-						$this->addSelect( [
-							'sortkey' => "REPLACE(CONCAT(IF(pl_namespace  =0, '', CONCAT(" .
-							             $_namespaceIdToText . ", ':')), pl_title), '_', ' ') " .
-							             $this->getCollateSQL(),
-						] );
+						if ( $wgDBtype === 'sqlite' ) {
+							$select = [
+								'sortkey' => "REPLACE(CASE WHEN(pl_namespace  = 0) THEN '' ELSE " .
+								             $_namespaceIdToText . " || ':' END , pl_title) || '_', ' ') " .
+								             $this->getCollateSQL(),
+							];
+						} else {
+							$select = [
+								'sortkey' => "REPLACE(CONCAT(IF(pl_namespace  =0, '', CONCAT(" .
+								             $_namespaceIdToText .
+								             ", ':')), pl_title), '_', ' ') " .
+								             $this->getCollateSQL(),
+							];
+						}
+						$this->addSelect( $select );
 					} else {
+						if ( $wgDBtype === 'sqlite' ) {
+							$select = [
+								'sortkey' => "REPLACE(CASE WHEN(" . $this->tableNames['page'] .
+								             ".page_namespace = 0) THEN '' ELSE " .
+								             $_namespaceIdToText . " || ':' END, " .
+								             $this->tableNames['page'] .
+								             ".page_title || '_', ' ') " . $this->getCollateSQL(),
+							];
+						} else {
+							$select = [
+								'sortkey' => "REPLACE(CONCAT(IF(" . $this->tableNames['page'] .
+								             ".page_namespace = 0, '', CONCAT(" .
+								             $_namespaceIdToText . ", ':')), " .
+								             $this->tableNames['page'] .
+								             ".page_title), '_', ' ') " . $this->getCollateSQL(),
+							];
+						}
+						$this->addSelect( $select );
 						// Generate sortkey like for category links. UTF-8 created problems with
 						// non-utf-8 MySQL databases.
-						$this->addSelect( [
-							'sortkey' => "REPLACE(CONCAT(IF(" . $this->tableNames['page'] .
-							             ".page_namespace = 0, '', CONCAT(" . $_namespaceIdToText .
-							             ", ':')), " . $this->tableNames['page'] .
-							             ".page_title), '_', ' ') " . $this->getCollateSQL(),
-						] );
 					}
 					break;
 
