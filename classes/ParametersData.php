@@ -20,7 +20,7 @@ class ParametersData {
 	 *
 	 * @var array
 	 */
-	static private $parametersForRichnessLevel = [
+	private static $parametersForRichnessLevel = [
 		0 => [
 			'addfirstcategorydate',
 			'category',

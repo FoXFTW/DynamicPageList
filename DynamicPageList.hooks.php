@@ -145,14 +145,14 @@ class DynamicPageListHooks {
 	 *
 	 * @var bool
 	 */
-	static private $likeIntersection = false;
+	private static $likeIntersection = false;
 
 	/**
 	 * Debugging Level
 	 *
 	 * @var integer
 	 */
-	static private $debugLevel = 0;
+	private static $debugLevel = 0;
 
 	/**
 	 * Handle special on extension registration bits.
@@ -199,7 +199,7 @@ class DynamicPageListHooks {
 	 * @return void
 	 * @throws \MWException
 	 */
-	static private function init() {
+	private static function init() {
 		\DPL\Config::init();
 
 		if ( !isset( self::$createdLinks ) ) {
@@ -260,7 +260,7 @@ class DynamicPageListHooks {
 	 * @param bool $mode Behave Like Intersection
 	 * @return void
 	 */
-	static private function setLikeIntersection( $mode = false ) {
+	private static function setLikeIntersection( $mode = false ) {
 		self::$likeIntersection = $mode;
 	}
 
@@ -275,7 +275,7 @@ class DynamicPageListHooks {
 	 * @return string HTML
 	 * @throws \MWException
 	 */
-	static private function executeTag( $input, array $args, Parser $parser, PPFrame $frame ) {
+	private static function executeTag( $input, array $args, Parser $parser, PPFrame $frame ) {
 		// entry point for user tag <dpl>  or  <DynamicPageList>
 		// create list and do a recursive parse of the output
 		$saveTemplates = [];
@@ -452,7 +452,7 @@ class DynamicPageListHooks {
 	 * @param string $needle
 	 * @return bool
 	 */
-	static private function isRegexp( $needle ) {
+	private static function isRegexp( $needle ) {
 		if ( strlen( $needle ) < 3 ) {
 			return false;
 		}
@@ -796,7 +796,7 @@ class DynamicPageListHooks {
 	 * @param \Parser $parser
 	 * @param string $label
 	 */
-	static private function dumpParsedRefs( Parser $parser, $label ) {
+	private static function dumpParsedRefs( Parser $parser, $label ) {
 		//if (!preg_match("/Query Q/",$parser->mTitle->getText())) return '';
 		echo '<pre>parser mLinks: ';
 		ob_start();

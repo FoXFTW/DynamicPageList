@@ -599,7 +599,7 @@ class LST {
 	 * @param int $limit Cutoff point in the text to stop searching
 	 * @return int Number of matches
 	 */
-	static private function countHeadings( $text, $limit ) {
+	private static function countHeadings( $text, $limit ) {
 		$pat = '^(={1,6}).+\1\s*$()';
 		$count = 0;
 		$offset = 0;
@@ -962,7 +962,7 @@ class LST {
 	 * @param \Parser $parser
 	 * @return string HTML output
 	 */
-	static private function noop( $in, $assocArgs = [], $parser = null ) {
+	private static function noop( $in, $assocArgs = [], $parser = null ) {
 		return '';
 	}
 }

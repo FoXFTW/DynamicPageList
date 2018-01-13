@@ -18,7 +18,7 @@ class Config {
 	 *
 	 * @var array
 	 */
-	static private $settings = [];
+	private static $settings = [];
 
 	/**
 	 * Initialize the static object with settings.
