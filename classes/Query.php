@@ -13,6 +13,7 @@ namespace DPL;
 
 use DateInterval;
 use DateTime;
+use DynamicPageListHooks;
 use Exception;
 use MWException;
 
@@ -1765,7 +1766,7 @@ class Query {
 					break;
 
 				case 'lastedit':
-					if ( \DynamicPageListHooks::isLikeIntersection() ) {
+					if ( DynamicPageListHooks::isLikeIntersection() ) {
 						$this->addOrderBy( 'page_touched' );
 						$this->addSelect( [
 							"page_touched" => "{$this->tableNames['page']}.page_touched",
@@ -1857,7 +1858,8 @@ class Query {
 						if ( $wgDBtype === 'sqlite' ) {
 							$select = [
 								'sortkey' => "REPLACE(CASE WHEN(pl_namespace  = 0) THEN '' ELSE " .
-								             $_namespaceIdToText . " || ':' END , pl_title) || '_', ' ') " .
+								             $_namespaceIdToText .
+								             " || ':' END , pl_title) || '_', ' ') " .
 								             $this->getCollateSQL(),
 							];
 						} else {
