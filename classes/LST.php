@@ -201,7 +201,7 @@ class LST {
 	 * @param string $part1
 	 * @return bool
 	 */
-	static public function open( Parser $parser, $part1 ) {
+	public static function open( Parser $parser, $part1 ) {
 		// Infinite loop test
 		if ( isset( $parser->mTemplatePath[$part1] ) ) {
 			wfDebug( __METHOD__ . ": template loop broken at '$part1'\n" );
@@ -222,7 +222,7 @@ class LST {
 	 * @param string $part1
 	 * @return void
 	 */
-	static public function close( Parser $parser, $part1 ) {
+	public static function close( Parser $parser, $part1 ) {
 		// Infinite loop test
 		if ( isset( $parser->mTemplatePath[$part1] ) ) {
 			unset( $parser->mTemplatePath[$part1] );

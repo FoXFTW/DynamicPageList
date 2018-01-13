@@ -2011,7 +2011,7 @@ EOL;
 	 * @param string $imgName name of the image (may start with Image: or File:)
 	 * @return string unique prefix
 	 */
-	static public function imageWithPath( $imgName ) {
+	public static function imageWithPath( $imgName ) {
 		$title = Title::newfromText( 'Image:' . $imgName );
 
 		if ( !is_null( $title ) ) {

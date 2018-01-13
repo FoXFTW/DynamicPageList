@@ -251,7 +251,7 @@ class Article extends WikiArticle {
 	 * @return \DPL\Article \DPL\Article Object
 	 * @throws MWException
 	 */
-	static public function newFromRow(
+	public static function newFromRow(
 		$row, Parameters $parameters, Title $title, $pageNamespace, $pageTitle
 	) {
 		static::$dbRow = $row;
@@ -667,7 +667,7 @@ class Article extends WikiArticle {
 	 *
 	 * @return array Headings
 	 */
-	static public function getHeadings() {
+	public static function getHeadings() {
 		return self::$headings;
 	}
 
@@ -678,7 +678,7 @@ class Article extends WikiArticle {
 	 *
 	 * @return void
 	 */
-	static public function resetHeadings() {
+	public static function resetHeadings() {
 		self::$headings = [];
 	}
 }

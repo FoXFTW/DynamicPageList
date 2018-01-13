@@ -19,7 +19,7 @@ use \DPL\Variables;
 use \DPL\LST;
 
 class DynamicPageListHooks {
-	static public $fixedCategories = [];
+	public static $fixedCategories = [];
 
 	/**
 	 * the links created by DPL are collected here;
@@ -49,7 +49,7 @@ class DynamicPageListHooks {
 	 *
 	 * @return void
 	 */
-	static public function onRegistration() {
+	public static function onRegistration() {
 		if ( !defined( 'DPL_VERSION' ) ) {
 			define( 'DPL_VERSION', '3.1.1' );
 		}
@@ -62,7 +62,7 @@ class DynamicPageListHooks {
 	 * @return bool true
 	 * @throws \MWException
 	 */
-	static public function onParserFirstCallInit( Parser &$parser ) {
+	public static function onParserFirstCallInit( Parser &$parser ) {
 		self::init();
 
 		//DPL offers the same functionality as Intersection.  So we register the <DynamicPageList> tag in case LabeledSection Extension is not installed so that the section markers are removed.
@@ -111,7 +111,7 @@ class DynamicPageListHooks {
 	 * @return bool true
 	 * @throws \MWException
 	 */
-	static public function setupMigration( Parser &$parser ) {
+	public static function setupMigration( Parser &$parser ) {
 		$parser->setHook( 'Intersection', [ __CLASS__, 'intersectionTag' ] );
 
 		self::init();
@@ -124,7 +124,7 @@ class DynamicPageListHooks {
 	 *
 	 * @return bool Behaving Like Intersection
 	 */
-	static public function isLikeIntersection() {
+	public static function isLikeIntersection() {
 		return (bool)self::$likeIntersection;
 	}
 
@@ -138,7 +138,7 @@ class DynamicPageListHooks {
 	 * @return string HTML
 	 * @throws \MWException
 	 */
-	static public function intersectionTag( $input, array $args, Parser $parser, PPFrame $frame ) {
+	public static function intersectionTag( $input, array $args, Parser $parser, PPFrame $frame ) {
 		self::setLikeIntersection( true );
 
 		return self::executeTag( $input, $args, $parser, $frame );
@@ -222,7 +222,7 @@ class DynamicPageListHooks {
 	 * @return string HTML
 	 * @throws \MWException
 	 */
-	static public function dplTag( $input, array $args, Parser $parser, PPFrame $frame ) {
+	public static function dplTag( $input, array $args, Parser $parser, PPFrame $frame ) {
 		self::setLikeIntersection( false );
 
 		return self::executeTag( $input, $args, $parser, $frame );
@@ -235,7 +235,7 @@ class DynamicPageListHooks {
 	 * @return array|string Wiki Text
 	 * @throws \MWException
 	 */
-	static public function dplParserFunction( Parser &$parser ) {
+	public static function dplParserFunction( Parser &$parser ) {
 		self::setLikeIntersection( false );
 
 		// callback for the parser function {{#dpl:	  or   {{DynamicPageList::
@@ -279,7 +279,7 @@ class DynamicPageListHooks {
 	 * @param string $text
 	 * @return string Wiki Text
 	 */
-	static public function dplNumParserFunction( Parser &$parser, $text = '' ) {
+	public static function dplNumParserFunction( Parser &$parser, $text = '' ) {
 		$num = str_replace( '&#160;', ' ', $text );
 		$num = str_replace( '&nbsp;', ' ', $text );
 		$num = preg_replace( '/([0-9])([.])([0-9][0-9]?[^0-9,])/', '\1,\3', $num );
@@ -303,7 +303,7 @@ class DynamicPageListHooks {
 	 * @param string $cmd
 	 * @return mixed|string
 	 */
-	static public function dplVarParserFunction( Parser &$parser, $cmd ) {
+	public static function dplVarParserFunction( Parser &$parser, $cmd ) {
 		$args = func_get_args();
 
 		if ( $cmd == 'set' ) {
@@ -322,7 +322,7 @@ class DynamicPageListHooks {
 	 * @param string $replace
 	 * @return null|string|string[]
 	 */
-	static public function dplReplaceParserFunction( Parser &$parser, $text, $pat = '', $replace = '' ) {
+	public static function dplReplaceParserFunction( Parser &$parser, $text, $pat = '', $replace = '' ) {
 		if ( $text == '' || $pat == '' ) {
 			return '';
 		}
@@ -374,7 +374,7 @@ class DynamicPageListHooks {
 	 * @param bool $trim
 	 * @return mixed
 	 */
-	static public function dplChapterParserFunction(
+	public static function dplChapterParserFunction(
 		Parser &$parser, $text = '', $heading = ' ', $maxLength = - 1, $page = '?page?', $link = 'default',
 		$trim = false
 	) {
@@ -394,7 +394,7 @@ class DynamicPageListHooks {
 	 * @param string $matrix
 	 * @return string
 	 */
-	static public function dplMatrixParserFunction(
+	public static function dplMatrixParserFunction(
 		Parser &$parser, $name = '', $yes = '', $no = '', $flip = '', $matrix = ''
 	) {
 		$lines = explode( "\n", $matrix );
@@ -510,7 +510,7 @@ class DynamicPageListHooks {
 	 * @param null $parser
 	 * @return string empty
 	 */
-	static public function removeSectionMarkers( $in, $assocArgs = [], $parser = null ) {
+	public static function removeSectionMarkers( $in, $assocArgs = [], $parser = null ) {
 		return '';
 	}
 
@@ -519,7 +519,7 @@ class DynamicPageListHooks {
 	 *
 	 * @param string $cat Category
 	 */
-	static public function fixCategory( $cat ) {
+	public static function fixCategory( $cat ) {
 		if ( $cat != '' ) {
 			self::$fixedCategories[$cat] = 1;
 		}
@@ -530,7 +530,7 @@ class DynamicPageListHooks {
 	 *
 	 * @return int
 	 */
-	static public function getDebugLevel() {
+	public static function getDebugLevel() {
 		return self::$debugLevel;
 	}
 
@@ -540,7 +540,7 @@ class DynamicPageListHooks {
 	 * @param int $level Debug Level
 	 * @return void
 	 */
-	static public function setDebugLevel( $level ) {
+	public static function setDebugLevel( $level ) {
 		self::$debugLevel = intval( $level );
 	}
 
@@ -549,7 +549,7 @@ class DynamicPageListHooks {
 	 * @param $text
 	 * @return bool
 	 */
-	static public function endReset( Parser &$parser, $text ) {
+	public static function endReset( Parser &$parser, $text ) {
 		if ( !self::$createdLinks['resetdone'] ) {
 			self::$createdLinks['resetdone'] = true;
 
@@ -590,7 +590,7 @@ class DynamicPageListHooks {
 	 * @param string $text
 	 * @return bool
 	 */
-	static public function endEliminate( Parser &$parser, &$text ) {
+	public static function endEliminate( Parser &$parser, &$text ) {
 		// called during the final output phase; removes links created by DPL
 		if ( isset( self::$createdLinks ) ) {
 			// self::dumpParsedRefs($parser,"before final eliminate");
@@ -655,7 +655,7 @@ class DynamicPageListHooks {
 	 * @param DatabaseUpdater $updater [Optional] DatabaseUpdater Object
 	 * @return bool true
 	 */
-	static public function onLoadExtensionSchemaUpdates( DatabaseUpdater $updater = null ) {
+	public static function onLoadExtensionSchemaUpdates( DatabaseUpdater $updater = null ) {
 		$updater->addExtensionUpdate( [ [ __CLASS__, 'createDPLTemplate' ] ] );
 
 		return true;
@@ -667,7 +667,7 @@ class DynamicPageListHooks {
 	 * @return void
 	 * @throws \MWException
 	 */
-	static public function createDPLTemplate() {
+	public static function createDPLTemplate() {
 		//Make sure page "Template:Extension DPL" exists
 		$title = Title::newFromText( 'Template:Extension DPL' );
 

@@ -538,7 +538,7 @@ class Parse {
 	 * @param string $text Text
 	 * @return string New Lined Text
 	 */
-	static public function replaceNewLines( $text ) {
+	public static function replaceNewLines( $text ) {
 		return str_replace( [ '\n', "¶" ], "\n", $text );
 	}
 

@@ -28,7 +28,7 @@ class Config {
 	 * @return void
 	 * @throws \MWException
 	 */
-	static public function init( $settings = false ) {
+	public static function init( $settings = false ) {
 		if ( $settings === false ) {
 			global $wgDplSettings;
 
@@ -48,7 +48,7 @@ class Config {
 	 * @param string $setting Setting Key
 	 * @return mixed The setting's actual setting or null if it does not exist.
 	 */
-	static public function getSetting( $setting ) {
+	public static function getSetting( $setting ) {
 		if ( array_key_exists( $setting, self::$settings ) ) {
 			return self::$settings[$setting];
 		}
@@ -61,7 +61,7 @@ class Config {
 	 *
 	 * @return array All settings
 	 */
-	static public function getAllSettings() {
+	public static function getAllSettings() {
 		return self::$settings;
 	}
 
@@ -73,7 +73,7 @@ class Config {
 	 * @return void
 	 * @throws \MWException
 	 */
-	static public function setSetting( $setting, $value = null ) {
+	public static function setSetting( $setting, $value = null ) {
 		if ( empty( $setting ) || !is_string( $setting ) ) {
 			throw new MWException( __METHOD__ . ": Setting keys can not be blank." );
 		}

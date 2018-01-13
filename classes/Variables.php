@@ -17,14 +17,14 @@ class Variables {
 	 *
 	 * @var array
 	 */
-	static public $memoryVar = [];
+	public static $memoryVar = [];
 
 	/**
 	 * Memory storage for arrays of variables.
 	 *
 	 * @var array
 	 */
-	static public $memoryArray = [];
+	public static $memoryArray = [];
 
 	/**
 	 * expects pairs of 'variable name' and 'value'
@@ -33,7 +33,7 @@ class Variables {
 	 * @param array $arg
 	 * @return string
 	 */
-	static public function setVar( $arg ) {
+	public static function setVar( $arg ) {
 		$numArgs = count( $arg );
 
 		if ( $numArgs >= 3 && $arg[2] == '' ) {
@@ -59,7 +59,7 @@ class Variables {
 	 * @param array $arg
 	 * @return string
 	 */
-	static public function setVarDefault( $arg ) {
+	public static function setVarDefault( $arg ) {
 		$numArgs = count( $arg );
 
 		if ( $numArgs > 3 ) {
@@ -81,7 +81,7 @@ class Variables {
 	 * @param $var
 	 * @return mixed|string
 	 */
-	static public function getVar( $var ) {
+	public static function getVar( $var ) {
 		if ( array_key_exists( $var, self::$memoryVar ) ) {
 			return self::$memoryVar[$var];
 		}
@@ -93,7 +93,7 @@ class Variables {
 	 * @param array $arg
 	 * @return string|null
 	 */
-	static public function setArray( $arg ) {
+	public static function setArray( $arg ) {
 		$numArgs = count( $arg );
 
 		if ( $numArgs < 5 ) {
@@ -136,7 +136,7 @@ class Variables {
 	 * @param array $arg
 	 * @return string
 	 */
-	static public function dumpArray( $arg ) {
+	public static function dumpArray( $arg ) {
 		$numArgs = count( $arg );
 
 		if ( $numArgs < 3 ) {
@@ -167,7 +167,7 @@ class Variables {
 	 * @param string $subject
 	 * @return array|string
 	 */
-	static public function printArray( $var, $delimiter, $search, $subject ) {
+	public static function printArray( $var, $delimiter, $search, $subject ) {
 		$var = trim( $var );
 
 		if ( $var == '' ) {

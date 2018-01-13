@@ -162,7 +162,7 @@ class Query {
 	 *
 	 * @return array Prepared table names.
 	 */
-	static public function getTableNames() {
+	public static function getTableNames() {
 		$database = wfGetDB( DB_SLAVE );
 		$tableNames = [];
 
@@ -193,7 +193,7 @@ class Query {
 	 * @param int $depth [Optional] Maximum Depth
 	 * @return array Subcategories
 	 */
-	static public function getSubcategories( $categoryName, $depth = 1 ) {
+	public static function getSubcategories( $categoryName, $depth = 1 ) {
 		$dbr = wfGetDB( DB_SLAVE );
 
 		if ( $depth > 2 ) {
