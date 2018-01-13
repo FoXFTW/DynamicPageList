@@ -14,6 +14,8 @@ namespace DPL;
 use DynamicPageListHooks;
 
 class Logger {
+	const LOGGER_TEXT_PREFIX = 'Extension:DynamicPageList (DPL)';
+
 	/**
 	 * Buffer of debug messages.
 	 *
@@ -25,13 +27,13 @@ class Logger {
 	 * Function Documentation
 	 *
 	 * @param $errorId
-	 * @return bool false
+	 * @return void
 	 */
 	public function addMessage( $errorId ) {
 		$args = func_get_args();
 		$args = array_map( 'htmlspecialchars', $args );
 
-		return call_user_func_array( [ $this, 'msg' ], $args );
+		call_user_func_array( [ $this, 'msg' ], $args );
 	}
 
 	/**
@@ -55,7 +57,7 @@ class Logger {
 	 * Parameters from user input must be escaped for HTML *before* passing to this function
 	 *
 	 * @param int $errorId Message ID
-	 * @return bool false
+	 * @return void
 	 */
 	public function msg() {
 		$args = func_get_args();
@@ -64,27 +66,53 @@ class Logger {
 		$errorMessageId = $errorId % 1000;
 
 		if ( DynamicPageListHooks::getDebugLevel() >= $errorLevel ) {
+			$text = '';
+
 			if ( DynamicPageListHooks::isLikeIntersection() ) {
-				if ( $errorId == DynamicPageListHooks::FATAL_TOOMANYCATS ) {
-					$text = wfMessage( 'intersection_toomanycats', $args )->text();
-				} elseif ( $errorId == DynamicPageListHooks::FATAL_TOOFEWCATS ) {
-					$text = wfMessage( 'intersection_toofewcats', $args )->text();
-				} elseif ( $errorId == DynamicPageListHooks::WARN_NORESULTS ) {
-					$text = wfMessage( 'intersection_noresults', $args )->text();
-				} elseif ( $errorId == DynamicPageListHooks::FATAL_NOSELECTION ) {
-					$text = wfMessage( 'intersection_noincludecats', $args )->text();
-				}
+				$text = $this->getMessageTextForErrorId( $errorId, $args );
 			}
 
 			if ( empty( $text ) ) {
 				$text = wfMessage( 'dpl_log_' . $errorMessageId, $args )->text();
 			}
 
-			$this->buffer[] =
-				'<p>Extension:DynamicPageList (DPL), version ' . DPL_VERSION . ': ' . $text .
-				'</p>';
+			$this->buffer[] = sprintf(
+				'<p>%s, version %s: %s</p>',
+				static::LOGGER_TEXT_PREFIX,
+				DPL_VERSION,
+				$text
+			);
+		}
+	}
+
+	/**
+	 * @param int $errorId
+	 * @param array $messageParameters
+	 * @return string
+	 */
+	private function getMessageTextForErrorId( $errorId, array $messageParameters ) {
+		switch ( $errorId ) {
+			case DynamicPageListHooks::FATAL_TOOMANYCATS:
+				$text = wfMessage( 'intersection_toomanycats', $messageParameters )->text();
+				break;
+
+			case DynamicPageListHooks::FATAL_TOOFEWCATS:
+				$text = wfMessage( 'intersection_toofewcats', $messageParameters )->text();
+				break;
+
+			case DynamicPageListHooks::WARN_NORESULTS:
+				$text = wfMessage( 'intersection_noresults', $messageParameters )->text();
+				break;
+
+			case DynamicPageListHooks::FATAL_NOSELECTION;
+				$text = wfMessage( 'intersection_noincludecats', $messageParameters )->text();
+				break;
+
+			default:
+				$text = '';
+				break;
 		}
 
-		return false;
+		return $text;
 	}
 }
