@@ -1165,9 +1165,9 @@ class ParametersData {
 	public function getData( $parameter ) {
 		if ( array_key_exists( $parameter, $this->data ) ) {
 			return $this->data[$parameter];
-		} else {
-			return false;
 		}
+
+		return false;
 	}
 
 	/**
@@ -1202,7 +1202,7 @@ class ParametersData {
 	 * @return array The functional richness parameters list.
 	 */
 	public function getParametersForRichness( $level = null ) {
-		if ( $level === null ) {
+		if ( is_null( $level ) ) {
 			$level = $this->getRichness();
 		}
 
