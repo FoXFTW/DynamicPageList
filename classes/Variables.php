@@ -117,7 +117,7 @@ class Variables {
 
 	/**
 	 * Dumps the Array as array (Key) = [Values]. Delimiter is ', '
-	 * {{#dplarray:key}}
+	 * {{#dplarray:dump|Key}}
 	 *
 	 * @param string $key
 	 * @return array|string
