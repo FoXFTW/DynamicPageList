@@ -889,7 +889,7 @@ class Parameters extends ParametersData {
 		// Parsing of wikitext will happen at the end of the output phase.  Replace '\n' in the
 		// input by linefeed because wiki syntax depends on linefeeds.
 		$option = $this->stripHtmlTags( $option );
-		$option = Parse::replaceNewLines( $option );
+		$option = Parser::replaceNewLines( $option );
 		$this->setParameter( 'listseparators', explode( ',', $option, 4 ) );
 		// Set the 'mode' parameter to userformat automatically.
 		$this->setParameter( 'mode', 'userformat' );
@@ -1232,7 +1232,7 @@ class Parameters extends ParametersData {
 	 */
 	public function _secseparators( $option ) {
 		// We replace '\n' by newline to support wiki syntax within the section separators
-		$this->setParameter( 'secseparators', explode( ',', Parse::replaceNewLines( $option ) ) );
+		$this->setParameter( 'secseparators', explode( ',', Parser::replaceNewLines( $option ) ) );
 
 		return true;
 	}
@@ -1246,7 +1246,7 @@ class Parameters extends ParametersData {
 	public function _multisecseparators( $option ) {
 		// We replace '\n' by newline to support wiki syntax within the section separators
 		$this->setParameter( 'multisecseparators',
-			explode( ',', Parse::replaceNewLines( $option ) ) );
+			explode( ',', Parser::replaceNewLines( $option ) ) );
 
 		return true;
 	}
@@ -1322,7 +1322,7 @@ class Parameters extends ParametersData {
 		$this->setParameter( 'secseparators', $sectionSeparators );
 		$this->setParameter( 'multisecseparators', $multiSectionSeparators );
 
-		$this->setParameter( 'table', Parse::replaceNewLines( $option ) );
+		$this->setParameter( 'table', Parser::replaceNewLines( $option ) );
 
 		return true;
 	}
@@ -1334,7 +1334,7 @@ class Parameters extends ParametersData {
 	 * @return bool Success
 	 */
 	public function _tablerow( $option ) {
-		$option = Parse::replaceNewLines( trim( $option ) );
+		$option = Parser::replaceNewLines( trim( $option ) );
 
 		if ( empty( $option ) ) {
 			$this->setParameter( 'tablerow', [] );

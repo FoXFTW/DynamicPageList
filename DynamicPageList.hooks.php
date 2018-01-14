@@ -17,7 +17,7 @@
 use DPL\Config;
 use DPL\Logger;
 use DPL\LST;
-use DPL\Parse;
+use DPL\Parser;
 use DPL\Variables;
 use Parser as WikiParser;
 
@@ -182,7 +182,7 @@ class DynamicPageListHooks {
 		$saveCategories = [];
 		$saveImages = [];
 
-		$parse = new Parse();
+		$parse = new Parser();
 		$parse->setLogger(static::$logger);
 
 		if ( Config::getSetting( 'recursiveTagParse' ) ) {
@@ -268,7 +268,7 @@ class DynamicPageListHooks {
 			$input .= str_replace( "\n", "", $p1 ) . "\n";
 		}
 
-		$parse = new Parse();
+		$parse = new Parser();
 		$parse->setLogger(static::$logger);
 		$dplResult = $parse->parse( $input, $parser, $reset, $eliminate, false );
 

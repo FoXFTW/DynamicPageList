@@ -18,7 +18,7 @@ use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerInterface;
 use Title;
 
-class Parse implements LoggerAwareInterface {
+class Parser implements LoggerAwareInterface {
 	/**
 	 * Mediawiki Database Object
 	 *
