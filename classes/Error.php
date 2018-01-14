@@ -11,7 +11,7 @@
 
 namespace DPL;
 
-class ErrorCodes {
+abstract class Error {
 	// FATAL
 	/**
 	 * $1: 'namespace' or 'notnamespace'
