@@ -620,6 +620,17 @@ class Query implements LoggerAwareInterface {
 	}
 
 	/**
+	 * Sets a logger instance on the object.
+	 *
+	 * @param LoggerInterface $logger
+	 *
+	 * @return void
+	 */
+	public function setLogger( LoggerInterface $logger ) {
+		$this->logger = $logger;
+	}
+
+	/**
 	 * Set SQL for 'addauthor' parameter.
 	 *
 	 * @param mixed $option Parameter Option
@@ -628,7 +639,7 @@ class Query implements LoggerAwareInterface {
 	 */
 	private function _addauthor( $option ) {
 		// Addauthor can not be used with addlasteditor.
-		if ( !isset($this->parametersProcessed['addlasteditor']) ) {
+		if ( !isset( $this->parametersProcessed['addlasteditor'] ) ) {
 			$this->addTable( 'revision', 'rev' );
 			$this->addWhere( [
 				$this->tableNames['page'] . '.page_id = rev.rev_page',
@@ -1459,8 +1470,7 @@ class Query implements LoggerAwareInterface {
 				$where =
 					"page_namespace || page_title NOT IN (SELECT {$this->tableNames['pagelinks']}.pl_namespace || {$this->tableNames['pagelinks']}.pl_title FROM {$this->tableNames['pagelinks']} WHERE ";
 			} else {
-				$where =
-					"CONCAT(page_namespace,page_title) NOT IN (SELECT CONCAT
+				$where = "CONCAT(page_namespace,page_title) NOT IN (SELECT CONCAT
 					({$this->tableNames['pagelinks']}.pl_namespace, {$this->tableNames['pagelinks']}.pl_title) FROM {$this->tableNames['pagelinks']} WHERE ";
 			}
 			$ors = [];
@@ -1912,7 +1922,7 @@ class Query implements LoggerAwareInterface {
 
 				case 'pagesel':
 					$this->addOrderBy( 'sortkey' );
-					if ($this->dbType === 'sqlite') {
+					if ( $this->dbType === 'sqlite' ) {
 						$select = [
 							'sortkey' => "pl.pl_namespace || pl.pl_title {$this->getCollateSQL()}",
 						];
@@ -1939,7 +1949,7 @@ class Query implements LoggerAwareInterface {
 					$this->addOrderBy( 'sortkey' );
 					// If cl_sortkey is null (uncategorized page), generate a sortkey in the usual way (full page name, underscores replaced with spaces).
 					// UTF-8 created problems with non-utf-8 MySQL databases
-					if ($this->dbType === 'sqlite') {
+					if ( $this->dbType === 'sqlite' ) {
 						$replaceConcat =
 							"REPLACE({$_namespaceIdToText} || {$this->tableNames['page']}.page_title), '_', ' ')";
 					} else {
@@ -2373,13 +2383,17 @@ class Query implements LoggerAwareInterface {
 	}
 
 	/**
-	 * Sets a logger instance on the object.
+	 * Set SQL for 'addeditdate' parameter.
 	 *
-	 * @param LoggerInterface $logger
-	 *
+	 * @param mixed Parameter Option
 	 * @return void
+	 * @throws \MWException
 	 */
-	public function setLogger( LoggerInterface $logger ) {
-		$this->logger = $logger;
+	private function _addeditdate( $option ) {
+		$this->addTable( 'revision', 'rev' );
+		$this->addSelect( [ 'rev.rev_timestamp' ] );
+		$this->addWhere( [
+			$this->tableNames['page'] . '.page_id = rev.rev_page',
+		] );
 	}
 }
