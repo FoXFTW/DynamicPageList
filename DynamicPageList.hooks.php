@@ -15,6 +15,7 @@
  */
 
 use DPL\Config;
+use DPL\Logger;
 use DPL\LST;
 use DPL\Parse;
 use DPL\Variables;
@@ -39,11 +40,16 @@ class DynamicPageListHooks {
 	private static $likeIntersection = false;
 
 	/**
+	 * @var \Psr\Log\LoggerInterface
+	 */
+	private static $logger;
+
+	/**
 	 * Debugging Level
 	 *
 	 * @var integer
 	 */
-	private static $debugLevel = 0;
+	private static $debugLevel = Logger::LEVEL_WARNING;
 
 	/**
 	 * Handle special on extension registration bits.
@@ -93,6 +99,7 @@ class DynamicPageListHooks {
 	 */
 	private static function init() {
 		Config::init();
+		static::$logger = Logger::getInstance();
 
 		if ( !isset( self::$createdLinks ) ) {
 			self::$createdLinks = [
@@ -175,6 +182,7 @@ class DynamicPageListHooks {
 		$saveImages = [];
 
 		$parse = new Parse();
+		$parse->setLogger(static::$logger);
 
 		if ( Config::getSetting( 'recursiveTagParse' ) ) {
 			$input = $parser->recursiveTagParse( $input, $frame );
@@ -260,6 +268,7 @@ class DynamicPageListHooks {
 		}
 
 		$parse = new Parse();
+		$parse->setLogger(static::$logger);
 		$dplResult = $parse->parse( $input, $parser, $reset, $eliminate, false );
 
 		return [ // parser needs to be coaxed to do further recursive processing

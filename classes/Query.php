@@ -16,8 +16,15 @@ use DateTime;
 use DynamicPageListHooks;
 use Exception;
 use MWException;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerInterface;
 
-class Query {
+class Query implements LoggerAwareInterface {
+	/**
+	 * @var LoggerInterface
+	 */
+	private $logger;
+
 	/**
 	 * Parameters Object
 	 *
@@ -621,7 +628,7 @@ class Query {
 	 */
 	private function _addauthor( $option ) {
 		// Addauthor can not be used with addlasteditor.
-		if ( !$this->parametersProcessed['addlasteditor'] ) {
+		if ( !isset($this->parametersProcessed['addlasteditor']) ) {
 			$this->addTable( 'revision', 'rev' );
 			$this->addWhere( [
 				$this->tableNames['page'] . '.page_id = rev.rev_page',
@@ -2363,5 +2370,16 @@ class Query {
 			$where .= implode( ' OR ', $ors ) . '))';
 			$this->addWhere( $where );
 		}
+	}
+
+	/**
+	 * Sets a logger instance on the object.
+	 *
+	 * @param LoggerInterface $logger
+	 *
+	 * @return void
+	 */
+	public function setLogger( LoggerInterface $logger ) {
+		$this->logger = $logger;
 	}
 }

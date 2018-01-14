@@ -40,7 +40,7 @@
 		"DPL\\Parse": "classes/Parse.php",
 		"DPL\\Query": "classes/Query.php",
 		"DPL\\Variables": "classes/Variables.php",
-		"DPL\\ErrorCodes": "classes/ErrorCodes.php"
+		"DPL\\Error": "classes/Error.php"
 	},
 	"Hooks": {
 		"ParserFirstCallInit": [

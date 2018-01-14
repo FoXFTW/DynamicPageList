@@ -330,8 +330,20 @@ class ParametersData {
 		 * - 5: <nowiki> tags around the ouput
 		 */
 		'debug' => [
-			'default' => 2,
-			'values' => [ 0, 1, 2, 3, 4, 5 ],
+			'default' => Logger::LEVEL_WARNING,
+			'values' => [
+				Logger::LEVEL_NONE,
+				Logger::LEVEL_EMERGENCY,
+				Logger::LEVEL_ALERT,
+				Logger::LEVEL_CRITICAL,
+				Logger::LEVEL_ERROR,
+				Logger::LEVEL_WARNING,
+				Logger::LEVEL_NOTICE,
+				Logger::LEVEL_INFO,
+				Logger::LEVEL_DEBUG,
+				Logger::LEVEL_DEBUG_SQL,
+				Logger::LEVEL_DEBUG_SQL_NOWIKI,
+			],
 		],
 
 		/**

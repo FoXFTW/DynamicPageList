@@ -14,9 +14,11 @@ namespace DPL;
 use DynamicPageListHooks;
 use MWException;
 use Parser;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerInterface;
 use Title;
 
-class Parse {
+class Parse implements LoggerAwareInterface {
 	/**
 	 * Mediawiki Database Object
 	 *
@@ -41,7 +43,7 @@ class Parse {
 	/**
 	 * \DPL\Logger Object
 	 *
-	 * @var \DPL\Logger
+	 * @var LoggerInterface
 	 */
 	private $logger = null;
 
@@ -120,7 +122,6 @@ class Parse {
 
 		$this->dbr = wfGetDB( DB_SLAVE );
 		$this->parameters = new Parameters();
-		$this->logger = new Logger();
 		$this->tableNames = Query::getTableNames();
 		$this->wgRequest = $wgRequest;
 	}
@@ -145,8 +146,8 @@ class Parse {
 
 		// Check that we are not in an infinite transclusion loop
 		if ( isset( $this->parser->mTemplatePath[$this->parser->mTitle->getPrefixedText()] ) ) {
-			$this->logger->addMessage( Error::WARN_TRANSCLUSION_LOOP,
-				$this->parser->mTitle->getPrefixedText() );
+			$this->logger->warning(Error::WARN_TRANSCLUSION_LOOP,
+				[$this->parser->mTitle->getPrefixedText()]);
 
 			return $this->getFullOutput();
 		}
@@ -157,8 +158,8 @@ class Parse {
 			// Ideally we would like to allow using a DPL query if the query itself is coded on a
 			// template page which is protected. Then there would be no need for the article to be protected.
 			// However, how can one find out from which wiki source an extension has been invoked???
-			$this->logger->addMessage( Error::FATAL_NOT_PROTECTED,
-				$this->parser->mTitle->getPrefixedText() );
+			$this->logger->error(Error::CRITICAL_NOT_PROTECTED,
+				[$this->parser->mTitle->getPrefixedText()]);
 
 			return $this->getFullOutput();
 		}
@@ -186,7 +187,7 @@ class Parse {
 
 		if ( !is_array( $cleanParameters ) ) {
 			// Short circuit for dumb things.
-			$this->logger->addMessage( Error::FATAL_NO_SELECTION );
+			$this->logger->critical(Error::CRITICAL_NO_SELECTION);
 
 			return $this->getFullOutput();
 		}
@@ -201,7 +202,7 @@ class Parse {
 				// passed into the Query object later.
 				if ( $this->parameters->$parameter( $_option ) === false ) {
 					// Do not build this into the output just yet.  It will be collected at the end.
-					$this->logger->addMessage( Error::WARN_WRONG_PARAM, $parameter, $_option );
+					$this->logger->error( Error::WARN_WRONG_PARAM, [$parameter, $_option] );
 				}
 			}
 		}
@@ -254,10 +255,11 @@ class Parse {
 		/*********/
 		try {
 			$this->query = new Query( $this->parameters );
+			$this->query->setLogger($this->logger);
 			$result = $this->query->buildAndSelect( $calcRows );
 		}
 		catch ( MWException $e ) {
-			$this->logger->addMessage( Error::FATAL_SQL_BUILD_ERROR, $e->getMessage() );
+			$this->logger->critical( Error::CRITICAL_SQL_BUILD_ERROR, [ $e->getMessage()] );
 
 			return $this->getFullOutput();
 		}
@@ -265,9 +267,7 @@ class Parse {
 		$numRows = $this->dbr->numRows( $result );
 		$articles = $this->processQueryResults( $result );
 
-		global $wgDebugDumpSql;
-
-		if ( DynamicPageListHooks::getDebugLevel() >= 4 && $wgDebugDumpSql ) {
+		if ( DynamicPageListHooks::getDebugLevel() >= Logger::LEVEL_DEBUG_SQL ) {
 			$this->addOutput( $this->query->getSqlQuery() . "\n" );
 		}
 
@@ -353,7 +353,7 @@ class Parse {
 				$this->parameters->getParameter( 'tablesortcol' ),
 				$this->parameters->getParameter( 'updaterules' ),
 				$this->parameters->getParameter( 'deleterules' ) );
-
+$this->dpl->setLogger($this->logger);
 		if ( $foundRows === null ) {
 			$foundRows = $this->dpl->getRowCount();
 		}
@@ -458,10 +458,10 @@ class Parse {
 		}
 
 		if ( !$totalResults && !strlen( $this->getHeader() ) && !strlen( $this->getFooter() ) ) {
-			$this->logger->addMessage( Error::WARN_NO_RESULTS );
+			$this->logger->warning( Error::WARN_NO_RESULTS );
 		}
 
-		$messages = $this->logger->getMessages( false );
+		$messages = $this->logger->getMessages( true );
 
 		return ( count( $messages ) ? implode( "<br/>\n", $messages ) : null ) .
 		       $this->getHeader() . $this->getOutput() . $this->getFooter();
@@ -509,7 +509,7 @@ class Parse {
 	 * @return void
 	 */
 	private function setHeader( $header ) {
-		if ( DynamicPageListHooks::getDebugLevel() == 5 ) {
+		if ( DynamicPageListHooks::getDebugLevel() >= Logger::LEVEL_DEBUG_SQL_NOWIKI ) {
 			$header = '<pre><nowiki>' . $header;
 		}
 
@@ -549,7 +549,7 @@ class Parse {
 	 * @return void
 	 */
 	private function setFooter( $footer ) {
-		if ( DynamicPageListHooks::getDebugLevel() == 5 ) {
+		if ( DynamicPageListHooks::getDebugLevel() >= Logger::LEVEL_DEBUG_SQL_NOWIKI ) {
 			$footer .= '</nowiki></pre>';
 		}
 
@@ -660,7 +660,7 @@ class Parse {
 			}
 
 			if ( strpos( $parameterOption, '=' ) === false ) {
-				$this->logger->addMessage( Error::WARN_PARAM_NO_OPTION, $parameterOption );
+				$this->logger->warning( Error::WARN_PARAM_NO_OPTION, [$parameterOption] );
 				continue;
 			}
 
@@ -685,8 +685,8 @@ class Parse {
 			}
 
 			if ( !$this->parameters->exists( $parameter ) ) {
-				$this->logger->addMessage( Error::WARN_UNKNOWN_PARAM, $parameter,
-					implode( ', ', $this->parameters->getParametersForRichness() ) );
+				$this->logger->warning( Error::WARN_UNKNOWN_PARAM, [$parameter,
+					implode( ', ', $this->parameters->getParametersForRichness() )] );
 				continue;
 			}
 
@@ -779,23 +779,23 @@ class Parse {
 		// Too many categories.
 		if ( $totalCategories > Config::getSetting( 'maxCategoryCount' ) &&
 		     !Config::getSetting( 'allowUnlimitedCategories' ) ) {
-			$this->logger->addMessage( Error::FATAL_TOO_MANY_CATEGORIES,
-				Config::getSetting( 'maxCategoryCount' ) );
+			$this->logger->critical( Error::CRITICAL_TOO_MANY_CATEGORIES,[
+				Config::getSetting( 'maxCategoryCount' )] );
 
 			return false;
 		}
 
 		// Not enough categories.(Really?)
 		if ( $totalCategories < Config::getSetting( 'minCategoryCount' ) ) {
-			$this->logger->addMessage( Error::FATAL_TOO_FEW_CATEGORIES,
-				Config::getSetting( 'minCategoryCount' ) );
+			$this->logger->critical( Error::CRITICAL_TOO_FEW_CATEGORIES,
+			[Config::getSetting( 'minCategoryCount' )] );
 
 			return false;
 		}
 
 		//Selection criteria needs to be found.
 		if ( !$totalCategories && !$this->parameters->isSelectionCriteriaFound() ) {
-			$this->logger->addMessage( Error::FATAL_NO_SELECTION );
+			$this->logger->critical( Error::CRITICAL_NO_SELECTION );
 
 			return false;
 		}
@@ -811,7 +811,7 @@ class Parse {
 		if ( $totalCategories == 0 && ( in_array( 'categoryadd', $orderMethods ) ||
 		                                $this->parameters->getParameter( 'addfirstcategorydate' ) ===
 		                                true ) ) {
-			$this->logger->addMessage( Error::FATAL_CAT_DATE_BUT_MORE_THAN_ONE_CAT );
+			$this->logger->critical( Error::CRITICAL_CAT_DATE_BUT_MORE_THAN_ONE_CAT );
 
 			return false;
 		}
@@ -821,7 +821,7 @@ class Parse {
 		if ( ( intval( $this->parameters->getParameter( 'addpagetoucheddate' ) ) +
 		       intval( $this->parameters->getParameter( 'addfirstcategorydate' ) ) +
 		       intval( $this->parameters->getParameter( 'addeditdate' ) ) ) > 1 ) {
-			$this->logger->addMessage( Error::FATAL_MORE_THAN_ONE_TYPE_OF_DATE );
+			$this->logger->critical( Error::CRITICAL_MORE_THAN_ONE_TYPE_OF_DATE );
 
 			return false;
 		}
@@ -830,8 +830,8 @@ class Parse {
 		if ( $this->parameters->getParameter( 'dominantsection' ) > 0 &&
 		     count( $this->parameters->getParameter( 'seclabels' ) ) <
 		     $this->parameters->getParameter( 'dominantsection' ) ) {
-			$this->logger->addMessage( Error::FATAL_DOMINANT_SECTION_RANGE,
-				count( $this->parameters->getParameter( 'seclabels' ) ) );
+			$this->logger->critical( Error::CRITICAL_DOMINANT_SECTION_RANGE,[
+				count( $this->parameters->getParameter( 'seclabels' ) )] );
 
 			return false;
 		}
@@ -839,8 +839,8 @@ class Parse {
 		// category-style output requested with not compatible order method
 		if ( $this->parameters->getParameter( 'mode' ) == 'category' &&
 		     !array_intersect( $orderMethods, [ 'sortkey', 'title', 'titlewithoutnamespace' ] ) ) {
-			$this->logger->addMessage( Error::FATAL_WRONG_ORDER_METHOD, 'mode=category',
-				'sortkey | title | titlewithoutnamespace' );
+			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [ 'mode=category',
+			                                                               'sortkey | title | titlewithoutnamespace'] );
 
 			return false;
 		}
@@ -848,8 +848,8 @@ class Parse {
 		// addpagetoucheddate=true with unappropriate order methods
 		if ( $this->parameters->getParameter( 'addpagetoucheddate' ) &&
 		     !array_intersect( $orderMethods, [ 'pagetouched', 'title' ] ) ) {
-			$this->logger->addMessage( Error::FATAL_WRONG_ORDER_METHOD,
-				'addpagetoucheddate=true', 'pagetouched | title' );
+			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [ 'addpagetoucheddate=true',
+			                                                               'pagetouched | title'] );
 
 			return false;
 		}
@@ -862,8 +862,8 @@ class Parse {
 		       $this->parameters->getParameter( 'allrevisionssince' ) ||
 		       $this->parameters->getParameter( 'firstrevisionsince' ) ||
 		       $this->parameters->getParameter( 'lastrevisionbefore' ) ) ) {
-			$this->logger->addMessage( Error::FATAL_WRONG_ORDER_METHOD, 'addeditdate=true',
-				'firstedit | lastedit' );
+			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [ 'addeditdate=true',
+			                                                               'firstedit | lastedit'] );
 
 			return false;
 		}
@@ -880,16 +880,16 @@ class Parse {
 		     !$this->parameters->getParameter( 'allrevisionssince' ) &&
 		     !$this->parameters->getParameter( 'firstrevisionsince' ) &&
 		     !$this->parameters->getParameter( 'lastrevisionbefore' ) ) {
-			$this->logger->addMessage( Error::FATAL_WRONG_ORDER_METHOD, 'adduser=true',
-				'firstedit | lastedit' );
+			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [ 'adduser=true',
+			                                                               'firstedit | lastedit'] );
 
 			return false;
 		}
 
 		if ( $this->parameters->getParameter( 'minoredits' ) &&
 		     !array_intersect( $orderMethods, [ 'firstedit', 'lastedit' ] ) ) {
-			$this->logger->addMessage( Error::FATAL_WRONG_ORDER_METHOD, 'minoredits',
-				'firstedit | lastedit' );
+			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [ 'minoredits',
+			                                                               'firstedit | lastedit'] );
 
 			return false;
 		}
@@ -907,8 +907,8 @@ class Parse {
 					$this->tableNames['page'] . ' LEFT OUTER JOIN ' .
 					$this->tableNames['categorylinks'] . ' ON ' . $this->tableNames['page'] .
 					'.page_id=cl_from';
-				$this->logger->addMessage( Error::FATAL_NO_CL_VIEW,
-					$this->tableNames['dpl_clview'], $sql );
+				$this->logger->critical( Error::CRITICAL_NO_CL_VIEW, [ $this->tableNames['dpl_clview'],
+				                                                       $sql] );
 
 				return false;
 			}
@@ -926,21 +926,21 @@ class Parse {
 		       $this->parameters->getParameter( 'addauthor' ) ||
 		       $this->parameters->getParameter( 'addcontribution' ) ||
 		       $this->parameters->getParameter( 'addlasteditor' ) ) ) {
-			$this->logger->addMessage( Error::WARN_CAT_OUTPUT_BUT_WRONG_PARAMS );
+			$this->logger->warning( Error::WARN_CAT_OUTPUT_BUT_WRONG_PARAMS );
 		}
 
 		// headingmode has effects with ordermethod on multiple components only
 		if ( $this->parameters->getParameter( 'headingmode' ) != 'none' &&
 		     count( $orderMethods ) < 2 ) {
-			$this->logger->addMessage( Error::WARN_HEADING_BUT_SIMPLE_ORDER_METHOD,
-				$this->parameters->getParameter( 'headingmode' ), 'none' );
+			$this->logger->warning( Error::WARN_HEADING_BUT_SIMPLE_ORDER_METHOD,[
+				$this->parameters->getParameter( 'headingmode' ), 'none'] );
 			$this->parameters->setParameter( 'headingmode', 'none' );
 		}
 
 		// The 'openreferences' parameter is incompatible with many other options.
 		if ( $this->parameters->isOpenReferencesConflict() &&
 		     $this->parameters->getParameter( 'openreferences' ) === true ) {
-			$this->logger->addMessage( Error::FATAL_OPEN_REFERENCES );
+			$this->logger->critical( Error::CRITICAL_OPEN_REFERENCES );
 
 			return false;
 		}
@@ -1242,5 +1242,16 @@ class Parse {
 				DynamicPageListHooks::$createdLinks[3] = $parserOutput->mImages;
 			}
 		}
+	}
+
+	/**
+	 * Sets a logger instance on the object.
+	 *
+	 * @param LoggerInterface $logger
+	 *
+	 * @return void
+	 */
+	public function setLogger( LoggerInterface $logger ) {
+		$this->logger = $logger;
 	}
 }

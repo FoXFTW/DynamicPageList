@@ -14,12 +14,19 @@ namespace DPL;
 use CategoryViewer;
 use ContentHandler;
 use Parser;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerInterface;
 use ReadOnlyError;
 use RepoGroup;
 use Title;
 use WikiPage;
 
-class DynamicPageList {
+class DynamicPageList implements LoggerAwareInterface {
+	/**
+	 * @var LoggerInterface
+	 */
+	private $logger;
+
 	/**
 	 * @var array
 	 */
@@ -187,6 +194,8 @@ class DynamicPageList {
 		$updateRules, $deleteRules
 	) {
 		global $wgContLang;
+
+		$this->logger = Logger::getInstance();
 
 		$this->nameSpaces = $wgContLang->getNamespaces();
 		$this->mArticles = $articles;
@@ -2145,5 +2154,16 @@ EOL;
 	 */
 	public function getText() {
 		return $this->mOutput;
+	}
+
+	/**
+	 * Sets a logger instance on the object.
+	 *
+	 * @param LoggerInterface $logger
+	 *
+	 * @return void
+	 */
+	public function setLogger( LoggerInterface $logger ) {
+		$this->logger = $logger;
 	}
 }
