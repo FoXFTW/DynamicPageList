@@ -91,6 +91,43 @@ class Parameters extends ParametersData {
 	}
 
 	/**
+	 * @return bool true if openreferences is true
+	 */
+	public function openReferencesEnabled() {
+		return $this->getParameter( 'openreferences' ) == true;
+	}
+
+	/**
+	 * Get a parameter's option.
+	 *
+	 * @param string $parameter Parameter to get
+	 * @return mixed Option for specified parameter.
+	 */
+	public function getParameter( $parameter ) {
+		if ( array_key_exists( $parameter, $this->parameterOptions ) ) {
+			return $this->parameterOptions[$parameter];
+		}
+
+		return null;
+	}
+
+	/**
+	 * @return bool if Parameter 'goal' = 'categories'
+	 */
+	public function goalParameterEqualsCategories() {
+		return $this->getParameter( 'goal' ) === 'categories';
+	}
+
+	/**
+	 * Check if Execute and Exit Only mode is active
+	 *
+	 * @return bool
+	 */
+	public function execAndExitModeEnabled() {
+		return !is_null( $this->getParameter( 'execandexit' ) );
+	}
+
+	/**
 	 * Handle simple parameter functions.
 	 *
 	 * @param string $parameter Function(Parameter) Called
@@ -280,20 +317,6 @@ class Parameters extends ParametersData {
 	 */
 	public function filterBoolean( $bool ) {
 		return filter_var( $bool, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE );
-	}
-
-	/**
-	 * Get a parameter's option.
-	 *
-	 * @param string $parameter Parameter to get
-	 * @return mixed Option for specified parameter.
-	 */
-	public function getParameter( $parameter ) {
-		if (array_key_exists( $parameter, $this->parameterOptions )) {
-			return $this->parameterOptions[$parameter];
-		}
-
-		return null;
 	}
 
 	/**

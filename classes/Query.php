@@ -274,7 +274,7 @@ class Query implements LoggerAwareInterface {
 		$this->processParameters();
 		$this->excludeNonIncludableNamespaces();
 
-		if ( $this->openReferencesEnabled() ) {
+		if ( $this->parameters->openReferencesEnabled() ) {
 			$this->setOpenReferencesParameters();
 		} else {
 			$this->setOpenReferencesDisabledParameters();
@@ -315,7 +315,7 @@ class Query implements LoggerAwareInterface {
 		}
 
 
-		if ( $this->goalParameterIsCategories() ) {
+		if ( $this->parameters->goalParameterEqualsCategories() ) {
 			$this->queryOptions[] = 'DISTINCT';
 		} else {
 			if ( $calcRows ) {
@@ -326,13 +326,6 @@ class Query implements LoggerAwareInterface {
 				$this->queryOptions[] = 'DISTINCT';
 			}
 		}
-	}
-
-	/**
-	 * @return bool if Parameter 'goal' = 'categories'
-	 */
-	private function goalParameterIsCategories() {
-		return $this->parameters->getParameter( 'goal' ) === 'categories';
 	}
 
 	/**
@@ -390,13 +383,6 @@ class Query implements LoggerAwareInterface {
 
 			$this->where[] = "{$field} {$query}";
 		}
-	}
-
-	/**
-	 * @return bool true if openreferences is true
-	 */
-	private function openReferencesEnabled() {
-		return $this->parameters->getParameter( 'openreferences' ) == true;
 	}
 
 	/**
@@ -514,7 +500,7 @@ class Query implements LoggerAwareInterface {
 	 * Sets $this->sqlQuery to a specific query if 'goal' = 'categories'
 	 */
 	private function setSqlQuery() {
-		if ( $this->goalParameterIsCategories() ) {
+		if ( $this->parameters->goalParameterEqualsCategories() ) {
 			$sql = $this->getSqlForCategoryGoal();
 		} else {
 			$sql =
@@ -890,8 +876,8 @@ class Query implements LoggerAwareInterface {
 			throw new MWException( __METHOD__ . ': An empty order by clause was passed.' );
 		}
 
-		if ( !preg_match( '/(asc(ending)?|desc(ending)?)$/i', $orderBy ) ) {
-			$this->orderBy[] = "$orderBy " . $this->direction;
+		if ( preg_match( '/(asc(ending)?|desc(ending)?)$/i', $orderBy ) === 1 ) {
+			$this->orderBy[] = "{$orderBy} {$this->direction}";
 		} else {
 			$this->orderBy[] = $orderBy;
 		}
