@@ -870,8 +870,8 @@ class Query implements LoggerAwareInterface {
 			'rev.rev_id',
 			'rev.rev_timestamp',
 		] );
-		$this->addOrderBy( 'rev.rev_id' );
 		$this->setOrderDir( 'DESC' );
+		$this->addOrderBy( 'rev.rev_id' );
 		$this->addWhere( [
 			$this->tableNames['page'] . '.page_id = rev.rev_page',
 			'rev.rev_timestamp < ' . $this->convertTimestamp( $option ),
@@ -890,7 +890,11 @@ class Query implements LoggerAwareInterface {
 			throw new MWException( __METHOD__ . ': An empty order by clause was passed.' );
 		}
 
-		$this->orderBy[] = $orderBy;
+		if ( !preg_match( '/(asc(ending)?|desc(ending)?)$/i', $orderBy ) ) {
+			$this->orderBy[] = "$orderBy " . $this->direction;
+		} else {
+			$this->orderBy[] = $orderBy;
+		}
 
 		return true;
 	}
@@ -969,8 +973,8 @@ class Query implements LoggerAwareInterface {
 			'rev.rev_id',
 			'rev.rev_timestamp',
 		] );
-		$this->addOrderBy( 'rev.rev_id' );
 		$this->setOrderDir( 'DESC' );
+		$this->addOrderBy( 'rev.rev_id' );
 		$this->addWhere( [
 			$this->tableNames['page'] . '.page_id = rev.rev_page',
 			'rev.rev_timestamp >= ' . $this->convertTimestamp( $option ),
