@@ -808,10 +808,14 @@ $this->dpl->setLogger($this->logger);
 
 		// Throw an error in no categories were selected when using category sorting modes or
 		// requesting category information.
-		if ( $totalCategories == 0 && ( in_array( 'categoryadd', $orderMethods ) ||
-		                                $this->parameters->getParameter( 'addfirstcategorydate' ) ===
-		                                true ) ) {
-			$this->logger->critical( Error::CRITICAL_CAT_DATE_BUT_MORE_THAN_ONE_CAT );
+		if ( $totalCategories === 0) {
+			if (in_array( 'categoryadd', $orderMethods )) {
+				$this->logger->critical(Error::CRITICAL_NO_CATEGORIES_FOR_ORDER_METHOD);
+			}
+
+			if ($this->parameters->getParameter( 'addfirstcategorydate' ) === true) {
+				$this->logger->critical( Error::CRITICAL_NO_CATEGORIES_FOR_ADD_DATE );
+			}
 
 			return false;
 		}
@@ -932,7 +936,7 @@ $this->dpl->setLogger($this->logger);
 		// headingmode has effects with ordermethod on multiple components only
 		if ( $this->parameters->getParameter( 'headingmode' ) != 'none' &&
 		     count( $orderMethods ) < 2 ) {
-			$this->logger->warning( Error::WARN_HEADING_BUT_SIMPLE_ORDER_METHOD,[
+			$this->logger->warning( Error::WARN_HEADING_MODE_TOO_FEW_ORDER_METHODS,[
 				$this->parameters->getParameter( 'headingmode' ), 'none'] );
 			$this->parameters->setParameter( 'headingmode', 'none' );
 		}
