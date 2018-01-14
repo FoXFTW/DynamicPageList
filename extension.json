@@ -3,7 +3,8 @@
 	"version": "3.1.1",
 	"author": [
 		"[http://de.wikipedia.org/wiki/Benutzer:Algorithmix Gero Scholz]",
-		"Alexia E. Smith"
+		"Alexia E. Smith",
+		"FoXFTW"
 	],
 	"url": "https://www.mediawiki.org/wiki/Extension:DynamicPageList3",
 	"descriptionmsg": "dpl-desc",
@@ -37,10 +38,16 @@
 		"DPL\\LST": "classes/LST.php",
 		"DPL\\Parameters": "classes/Parameters.php",
 		"DPL\\ParametersData": "classes/ParametersData.php",
-		"DPL\\Parse": "classes/Parse.php",
+		"DPL\\Parser": "classes/Parser.php",
 		"DPL\\Query": "classes/Query.php",
 		"DPL\\Variables": "classes/Variables.php",
-		"DPL\\Error": "classes/Error.php"
+		"DPL\\Error": "classes/Error.php",
+
+		"DPL\\Helper\\MersenneTwister": "classes/Helper/MersenneTwister.php",
+
+		"DPL\\Exceptions\\EmptyParametersException": "classes/Exceptions/EmptyParametersException.php",
+		"DPL\\Exceptions\\ProtectedModeException": "classes/Exceptions/ProtectedModeException.php",
+		"DPL\\Exceptions\\QueryErrorException": "classes/Exceptions/QueryErrorException.php"
 	},
 	"Hooks": {
 		"ParserFirstCallInit": [

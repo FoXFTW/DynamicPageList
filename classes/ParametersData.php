@@ -56,6 +56,7 @@ class ParametersData {
 			'noresultsfooter',
 			'noresultsheader',
 			'randomcount',
+			'randomseed',
 			'replaceintitle',
 			'resultsfooter',
 			'resultsheader',
@@ -300,6 +301,13 @@ class ParametersData {
 		'randomcount' => [
 			'default' => null,
 			'integer' => true,
+		],
+		/**
+		 * Random Seed used with
+		 */
+		'randomseed' => [
+			'default' => null,
+			'integer' => false,
 		],
 		/**
 		 * shall the result set be distinct (=default) or not?

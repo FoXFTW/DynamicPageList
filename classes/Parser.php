@@ -11,12 +11,17 @@
 
 namespace DPL;
 
+use DPL\Exceptions\Parser\EmptyParametersException;
+use DPL\Exceptions\Parser\ProtectedModeException;
+use DPL\Exceptions\Parser\QueryErrorException;
+use DPL\Helper\MersenneTwister;
 use DynamicPageListHooks;
 use MWException;
 use Parser as WikiParser;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerInterface;
 use Title;
+use Wikimedia\Rdbms\ResultWrapper;
 
 class Parser implements LoggerAwareInterface {
 	/**
@@ -112,154 +117,109 @@ class Parser implements LoggerAwareInterface {
 	 */
 	private $wgRequest;
 
+	private $parserTagMode = false;
+
+	/**
+	 * Reference to End Reset Booleans
+	 *
+	 * @var array
+	 */
+	private $resets = [];
+	private $eliminates = [];
+
 	/**
 	 * Main Constructor
 	 *
-	 * @return void
+	 * @param bool $parserTagMode If the Parser should be in Tag Mode
 	 */
-	public function __construct() {
+	public function __construct( $parserTagMode = false ) {
 		global $wgRequest;
 
 		$this->dbr = wfGetDB( DB_SLAVE );
 		$this->parameters = new Parameters();
 		$this->tableNames = Query::getTableNames();
 		$this->wgRequest = $wgRequest;
+		$this->parserTagMode = $parserTagMode;
+	}
+
+	/**
+	 * @param \Parser $parser Mediawiki Parser object.
+	 */
+	public function setWikiParser( WikiParser $parser ) {
+		$this->parser = $parser;
+	}
+
+	/**
+	 * @param array $reset End Reset Booleans
+	 * @param array $eliminate End Eliminate Booleans
+	 */
+	public function setResetAndEliminates( array &$reset, array &$eliminate ) {
+		$this->resets = &$reset;
+		$this->eliminates = &$eliminate;
 	}
 
 	/**
 	 * The real callback function for converting the input text to wiki text output
 	 *
 	 * @param string $input Raw User Input
-	 * @param \Parser $parser Mediawiki Parser object.
-	 * @param array $reset End Reset Booleans
-	 * @param array $eliminate End Eliminate Booleans
-	 * @param bool $isParserTag [Optional] Called as a parser tag
 	 * @return string Wiki/HTML Output
 	 * @throws \MWException
+	 * @throws \Exception
 	 */
-	public function parse( $input, WikiParser $parser, &$reset, &$eliminate, $isParserTag = false ) {
+	public function parse( $input ) {
 		$dplStartTime = microtime( true );
-		$this->parser = $parser;
 
 		// Reset headings when being ran more than once in the same page load.
 		Article::resetHeadings();
 
 		// Check that we are not in an infinite transclusion loop
-		if ( isset( $this->parser->mTemplatePath[$this->parser->mTitle->getPrefixedText()] ) ) {
-			$this->logger->warning(Error::WARN_TRANSCLUSION_LOOP,
-				[$this->parser->mTitle->getPrefixedText()]);
+//		if ( isset( $this->parser->mTemplatePath[$this->parser->mTitle->getPrefixedText()] ) ) {
+//			$this->logger->warning(Error::WARN_TRANSCLUSION_LOOP,
+//				[$this->parser->mTitle->getPrefixedText()]);
+//
+//			return $this->getFullOutput();
+//		}
+		$input = $this->processUrlArguments( $input );
+		$offset = $this->getOffset();
 
+		try {
+			$this->checkProtectedMode();
+			$this->processUserParameters( $input );
+		}
+		catch ( EmptyParametersException $e ) {
+			return $this->getFullOutput();
+		}
+		catch ( ProtectedModeException $e ) {
 			return $this->getFullOutput();
 		}
 
-		// Check if DPL shall only be executed from protected pages.
-		if ( Config::getSetting( 'runFromProtectedPagesOnly' ) === true &&
-		     !$this->parser->mTitle->isProtected( 'edit' ) ) {
-			// Ideally we would like to allow using a DPL query if the query itself is coded on a
-			// template page which is protected. Then there would be no need for the article to be protected.
-			// However, how can one find out from which wiki source an extension has been invoked???
-			$this->logger->error(Error::CRITICAL_NOT_PROTECTED,
-				[$this->parser->mTitle->getPrefixedText()]);
-
-			return $this->getFullOutput();
-		}
-
-		/************************************/
-		/* Check for URL Arguments in Input */
-		/************************************/
-		if ( strpos( $input, '{%DPL_' ) >= 0 ) {
-			for ( $i = 1; $i <= 5; $i ++ ) {
-				$this->urlArguments[] = 'DPL_arg' . $i;
-			}
-		}
-
-		$input = $this->resolveUrlArguments( $input, $this->urlArguments );
-		$this->getUrlArgs();
-
-		$this->parameters->setParameter( 'offset', $this->wgRequest->getInt( 'DPL_offset',
-			$this->parameters->getData( 'offset' )['default'] ) );
-		$offset = $this->parameters->getParameter( 'offset' );
-
-		/***************************************/
-		/* User Input preparation and parsing. */
-		/***************************************/
-		$cleanParameters = $this->prepareUserInput( $input );
-
-		if ( !is_array( $cleanParameters ) ) {
-			// Short circuit for dumb things.
-			$this->logger->critical(Error::CRITICAL_NO_SELECTION);
-
-			return $this->getFullOutput();
-		}
-
-		$cleanParameters = $this->parameters->sortByPriority( $cleanParameters );
 		// to check if pseudo-category of Uncategorized pages is included
 		$this->parameters->setParameter( 'includeuncat', false );
 
-		foreach ( $cleanParameters as $parameter => $option ) {
-			foreach ( $option as $_option ) {
-				// Parameter functions return true or false.  The full parameter data will be
-				// passed into the Query object later.
-				if ( $this->parameters->$parameter( $_option ) === false ) {
-					// Do not build this into the output just yet.  It will be collected at the end.
-					$this->logger->error( Error::WARN_WRONG_PARAM, [$parameter, $_option] );
-				}
-			}
+		if ( $this->parameters->execAndExitModeEnabled() ) {
+			return $this->getExecAndExitModeData();
 		}
 
-		/*************************/
-		/* Execute and Exit Only */
-		/*************************/
-		if ( $this->parameters->getParameter( 'execandexit' ) !== null ) {
-			// The keyword "geturlargs" is used to return the Url arguments and do nothing else.
-			if ( $this->parameters->getParameter( 'execandexit' ) == 'geturlargs' ) {
-				return null;
-			}
+		$this->checkSecLabelsMode();
 
-			// In all other cases we return the value of the argument which may contain parser
-			// function calls.
-			return $this->parameters->getParameter( 'execandexit' );
+		try {
+			$this->doQueryErrorChecks();
 		}
-
-		// Construct internal keys for TableRow according to the structure of "include".  This
-		// will be needed in the output phase.
-		if ( $this->parameters->getParameter( 'seclabels' ) !== null ) {
-			$this->parameters->setParameter( 'tablerow',
-				$this->updateTableRowKeys( $this->parameters->getParameter( 'tablerow' ),
-					$this->parameters->getParameter( 'seclabels' ) ) );
-		}
-
-		/****************/
-		/* Check Errors */
-		/****************/
-		$errors = $this->doQueryErrorChecks();
-
-		if ( $errors === false ) {
-			// WHAT HAS HAPPENED OH NOOOOOOOOOOOOO.
+		catch ( QueryErrorException $e ) {
 			return $this->getFullOutput();
 		}
 
-		$calcRows = false;
-
-		if ( !Config::getSetting( 'allowUnlimitedResults' ) &&
-		     $this->parameters->getParameter( 'goal' ) != 'categories' &&
-		     strpos( $this->parameters->getParameter( 'resultsheader' ) .
-		             $this->parameters->getParameter( 'noresultsheader' ) .
-		             $this->parameters->getParameter( 'resultsfooter' ), '%TOTALPAGES%' ) !==
-		     false ) {
-			$calcRows = true;
-		}
 
 		/*********/
 		/* Query */
 		/*********/
 		try {
 			$this->query = new Query( $this->parameters );
-			$this->query->setLogger($this->logger);
-			$result = $this->query->buildAndSelect( $calcRows );
+			$this->query->setLogger( $this->logger );
+			$result = $this->query->buildAndSelect( $this->getRowCalculationMode() );
 		}
 		catch ( MWException $e ) {
-			$this->logger->critical( Error::CRITICAL_SQL_BUILD_ERROR, [ $e->getMessage()] );
+			$this->logger->critical( Error::CRITICAL_SQL_BUILD_ERROR, [ $e->getMessage() ] );
 
 			return $this->getFullOutput();
 		}
@@ -290,7 +250,7 @@ class Parser implements LoggerAwareInterface {
 
 		$foundRows = null;
 
-		if ( $calcRows ) {
+		if ( $this->getRowCalculationMode() ) {
 			$foundRows = $this->query->getFoundRows();
 		}
 
@@ -353,7 +313,7 @@ class Parser implements LoggerAwareInterface {
 				$this->parameters->getParameter( 'tablesortcol' ),
 				$this->parameters->getParameter( 'updaterules' ),
 				$this->parameters->getParameter( 'deleterules' ) );
-$this->dpl->setLogger($this->logger);
+		$this->dpl->setLogger( $this->logger );
 		if ( $foundRows === null ) {
 			$foundRows = $this->dpl->getRowCount();
 		}
@@ -424,9 +384,210 @@ $this->dpl->setLogger($this->logger);
 
 		$finalOutput = $this->getFullOutput( $foundRows, false );
 
-		$this->triggerEndResets( $finalOutput, $reset, $eliminate, $isParserTag );
+		$this->triggerEndResets( $finalOutput );
 
 		return $finalOutput;
+	}
+
+	/**
+	 * Check for URL Arguments in Input
+	 *
+	 * @param string $input User Input
+	 * @return string
+	 */
+	private function processUrlArguments( $input ) {
+		if ( strpos( $input, '{%DPL_' ) >= 0 ) {
+			for ( $i = 1; $i <= 5; $i ++ ) {
+				$this->urlArguments[] = 'DPL_arg' . $i;
+			}
+		}
+
+		$this->getUrlArgs();
+
+		return $this->resolveUrlArguments( $input, $this->urlArguments );
+	}
+
+	/**
+	 * This function uses the Variables extension to provide URL-arguments like &DPL_xyz=abc in the
+	 * form of a variable which can be accessed as {{#var:xyz}} if Extension:Variables is installed.
+	 *
+	 * @return void
+	 */
+	private function getUrlArgs() {
+		$args = $this->wgRequest->getValues();
+
+		foreach ( $args as $argName => $argValue ) {
+			if ( strpos( $argName, 'DPL_' ) === false ) {
+				continue;
+			}
+
+			Variables::setVar( [ '', '', $argName, $argValue ] );
+
+			if ( defined( 'ExtVariables::VERSION' ) ) {
+				\ExtVariables::get( $this->parser )->setVarValue( $argName, $argValue );
+			}
+		}
+	}
+
+	/**
+	 * Resolve arguments in the input that would normally be in the URL.
+	 *
+	 * @param string $input Raw Uncleaned User Input
+	 * @param array $arguments Array of URL arguments to resolve.
+	 *  Non-arrays will be casted to an array.
+	 * @return string Raw input with variables replaced
+	 */
+	private function resolveUrlArguments( $input, $arguments ) {
+		$arguments = (array)$arguments;
+
+		foreach ( $arguments as $arg ) {
+			$dplArg = $this->wgRequest->getVal( $arg, '' );
+
+			if ( $dplArg == '' ) {
+				$input = preg_replace( '/\{%' . $arg . ':(.*)%\}/U', '\1', $input );
+				$input = str_replace( '{%' . $arg . '%}', '', $input );
+			} else {
+				$input = preg_replace( '/\{%' . $arg . ':.*%\}/U  ', $dplArg, $input );
+				$input = str_replace( '{%' . $arg . '%}', $dplArg, $input );
+			}
+		}
+
+		return $input;
+	}
+
+	/**
+	 * If DPL_Offset is set in Request use it, if not use default offset insted
+	 *
+	 * @return int Offset
+	 */
+	private function getOffset() {
+		$defaultOffset = $this->parameters->getData( 'offset' )['default'];
+		$offset = $this->wgRequest->getInt( 'DPL_offset', $defaultOffset );
+		$this->parameters->setParameter( 'offset', $offset );
+
+		return $offset;
+	}
+
+	/**
+	 * Check if DPL shall only be executed from protected pages.
+	 * Ideally we would like to allow using a DPL query if the query itself is coded on a
+	 * template page which is protected. Then there would be no need for the article to be protected.
+	 * However, how can one find out from which wiki source an extension has been invoked???
+	 *
+	 * @throws ProtectedModeException
+	 */
+	private function checkProtectedMode() {
+		if ( Config::getSetting( 'runFromProtectedPagesOnly' ) === true ) {
+			if ( !$this->parser->mTitle->isProtected( 'edit' ) ) {
+				$this->logger->error( Error::CRITICAL_NOT_PROTECTED,
+					[ $this->parser->mTitle->getPrefixedText() ] );
+
+				throw new ProtectedModeException();
+			}
+		}
+	}
+
+	/**
+	 * User Input preparation and parsing.
+	 *
+	 * @param string $input User Input
+	 * @throws MWException
+	 * @throws EmptyParametersException
+	 */
+	private function processUserParameters( $input ) {
+		$cleanParameters = $this->prepareUserInput( $input );
+
+		if ( !is_array( $cleanParameters ) ) {
+			$this->logger->critical( Error::CRITICAL_NO_SELECTION );
+
+			throw new EmptyParametersException();
+		}
+
+		$cleanParameters = $this->parameters->sortByPriority( $cleanParameters );
+
+		foreach ( $cleanParameters as $parameter => $options ) {
+			foreach ( $options as $option ) {
+				// Parameter functions return true or false.  The full parameter data will be
+				// passed into the Query object later.
+				if ( $this->parameters->$parameter( $option ) === false ) {
+					// Do not build this into the output just yet.  It will be collected at the end.
+					$this->logger->error( Error::WARN_WRONG_PARAM, [ $parameter, $option ] );
+				}
+			}
+		}
+	}
+
+	/**
+	 * Do basic clean up and structuring of raw user input.
+	 *
+	 * @param string $input Raw User Input
+	 * @return array|bool Array of raw text parameter => option.
+	 */
+	private function prepareUserInput( $input ) {
+		// We replace double angle brackets with single angle brackets to avoid premature tag
+		// expansion in the input. The ¦ symbol is an alias for |.
+		// The combination '²{' and '}²'will be translated to double curly braces; this allows
+		// postponed template execution which is crucial for DPL queries which call other DPL queries.
+		$input =
+			str_replace( [ '«', '»', '¦', '²{', '}²' ], [ '<', '>', '|', '{{', '}}' ], $input );
+
+		// Standard new lines into the standard \n and clean up any hanging new lines.
+		$input = str_replace( [ "\r\n", "\r" ], "\n", $input );
+		$input = trim( $input, "\n" );
+		$rawParameters = explode( "\n", $input );
+
+		$parameters = false;
+
+		foreach ( $rawParameters as $parameterOption ) {
+			if ( empty( $parameterOption ) ) {
+				//Softly ignore blank lines.
+				continue;
+			}
+
+			if ( strpos( $parameterOption, '=' ) === false ) {
+				$this->logger->warning( Error::WARN_PARAM_NO_OPTION, [ $parameterOption ] );
+				continue;
+			}
+
+			list( $parameter, $option ) = explode( '=', $parameterOption, 2 );
+
+			$parameter = trim( $parameter );
+			$option = trim( $option );
+
+			if ( strpos( $parameter, '<' ) !== false || strpos( $parameter, '>' ) !== false ) {
+				// Having the actual less than and greater than symbols is nasty for programmatic
+				// look up.  The old parameter is still supported along with the new, but we just fix it here before calling it.
+				$parameter = str_replace( '<', 'lt', $parameter );
+				$parameter = str_replace( '>', 'gt', $parameter );
+			}
+
+			$parameter = strtolower( $parameter ); //Force lower case for ease of use.
+
+			if ( empty( $parameter ) || substr( $parameter, 0, 1 ) == '#' ||
+			     ( $this->parameters->exists( $parameter ) &&
+			       !$this->parameters->testRichness( $parameter ) ) ) {
+				continue;
+			}
+
+			if ( !$this->parameters->exists( $parameter ) ) {
+				$this->logger->warning( Error::WARN_UNKNOWN_PARAM, [
+					$parameter,
+					implode( ', ', $this->parameters->getParametersForRichness() ),
+				] );
+				continue;
+			}
+
+			// Ignore parameter settings without argument (except namespace and category).
+			if ( !strlen( $option ) ) {
+				if ( $parameter != 'namespace' && $parameter != 'notnamespace' &&
+				     $parameter != 'category' && $this->parameters->exists( $parameter ) ) {
+					continue;
+				}
+			}
+			$parameters[$parameter][] = $option;
+		}
+
+		return $parameters;
 	}
 
 	/**
@@ -457,14 +618,14 @@ $this->dpl->setLogger($this->logger);
 			$this->setFooter( $footer );
 		}
 
-		if ( !$totalResults && !strlen( $this->getHeader() ) && !strlen( $this->getFooter() ) ) {
+		if ( !$totalResults && !strlen( $this->header ) && !strlen( $this->footer ) ) {
 			$this->logger->warning( Error::WARN_NO_RESULTS );
 		}
 
 		$messages = $this->logger->getMessages( true );
 
-		return ( count( $messages ) ? implode( "<br/>\n", $messages ) : null ) .
-		       $this->getHeader() . $this->getOutput() . $this->getFooter();
+		return ( count( $messages ) ? implode( "<br/>\n", $messages ) : null ) . $this->header .
+		       $this->getOutput() . $this->footer;
 	}
 
 	/**
@@ -557,24 +718,6 @@ $this->dpl->setLogger($this->logger);
 	}
 
 	/**
-	 * Set the header text.
-	 *
-	 * @return string Header Text
-	 */
-	private function getHeader() {
-		return $this->header;
-	}
-
-	/**
-	 * Set the footer text.
-	 *
-	 * @return string Footer Text
-	 */
-	private function getFooter() {
-		return $this->footer;
-	}
-
-	/**
 	 * Set the output text.
 	 *
 	 * @return string Output Text
@@ -585,122 +728,34 @@ $this->dpl->setLogger($this->logger);
 	}
 
 	/**
-	 * Resolve arguments in the input that would normally be in the URL.
+	 * The keyword "geturlargs" is used to return the Url arguments and do nothing else.
+	 * In all other cases we return the value of the argument which may contain parser function
+	 * calls.
 	 *
-	 * @param string $input Raw Uncleaned User Input
-	 * @param array $arguments Array of URL arguments to resolve.
-	 *  Non-arrays will be casted to an array.
-	 * @return string Raw input with variables replaced
+	 * @return mixed|null
 	 */
-	private function resolveUrlArguments( $input, $arguments ) {
-		$arguments = (array)$arguments;
+	private function getExecAndExitModeData() {
+		$execAndExit = $this->parameters->getParameter( 'execandexit' );
 
-		foreach ( $arguments as $arg ) {
-			$dplArg = $this->wgRequest->getVal( $arg, '' );
-
-			if ( $dplArg == '' ) {
-				$input = preg_replace( '/\{%' . $arg . ':(.*)%\}/U', '\1', $input );
-				$input = str_replace( '{%' . $arg . '%}', '', $input );
-			} else {
-				$input = preg_replace( '/\{%' . $arg . ':.*%\}/U  ', $dplArg, $input );
-				$input = str_replace( '{%' . $arg . '%}', $dplArg, $input );
-			}
+		if ( $execAndExit === 'geturlargs' ) {
+			return null;
 		}
 
-		return $input;
+		return $execAndExit;
 	}
 
 	/**
-	 * This function uses the Variables extension to provide URL-arguments like &DPL_xyz=abc in the
-	 * form of a variable which can be accessed as {{#var:xyz}} if Extension:Variables is installed.
-	 *
-	 * @return void
+	 * Construct internal keys for TableRow according to the structure of "include".  This will
+	 * be needed in the output phase.
 	 */
-	private function getUrlArgs() {
-		$args = $this->wgRequest->getValues();
+	private function checkSecLabelsMode() {
+		$secLabels = $this->parameters->getParameter( 'seclabels' );
 
-		foreach ( $args as $argName => $argValue ) {
-			if ( strpos( $argName, 'DPL_' ) === false ) {
-				continue;
-			}
-
-			Variables::setVar( [ '', '', $argName, $argValue ] );
-
-			if ( defined( 'ExtVariables::VERSION' ) ) {
-				\ExtVariables::get( $this->parser )->setVarValue( $argName, $argValue );
-			}
+		if ( !is_null( $secLabels ) ) {
+			$tableRow = $this->parameters->getParameter( 'tablerow' );
+			$tableRow = $this->updateTableRowKeys( $tableRow, $secLabels );
+			$this->parameters->setParameter( 'tablerow', $tableRow );
 		}
-	}
-
-	/**
-	 * Do basic clean up and structuring of raw user input.
-	 *
-	 * @param string $input Raw User Input
-	 * @return array|bool Array of raw text parameter => option.
-	 */
-	private function prepareUserInput( $input ) {
-		// We replace double angle brackets with single angle brackets to avoid premature tag
-		// expansion in the input. The ¦ symbol is an alias for |.
-		// The combination '²{' and '}²'will be translated to double curly braces; this allows
-		// postponed template execution which is crucial for DPL queries which call other DPL queries.
-		$input =
-			str_replace( [ '«', '»', '¦', '²{', '}²' ], [ '<', '>', '|', '{{', '}}' ], $input );
-
-		// Standard new lines into the standard \n and clean up any hanging new lines.
-		$input = str_replace( [ "\r\n", "\r" ], "\n", $input );
-		$input = trim( $input, "\n" );
-		$rawParameters = explode( "\n", $input );
-
-		$parameters = false;
-
-		foreach ( $rawParameters as $parameterOption ) {
-			if ( empty( $parameterOption ) ) {
-				//Softly ignore blank lines.
-				continue;
-			}
-
-			if ( strpos( $parameterOption, '=' ) === false ) {
-				$this->logger->warning( Error::WARN_PARAM_NO_OPTION, [$parameterOption] );
-				continue;
-			}
-
-			list( $parameter, $option ) = explode( '=', $parameterOption, 2 );
-
-			$parameter = trim( $parameter );
-			$option = trim( $option );
-
-			if ( strpos( $parameter, '<' ) !== false || strpos( $parameter, '>' ) !== false ) {
-				// Having the actual less than and greater than symbols is nasty for programmatic
-				// look up.  The old parameter is still supported along with the new, but we just fix it here before calling it.
-				$parameter = str_replace( '<', 'lt', $parameter );
-				$parameter = str_replace( '>', 'gt', $parameter );
-			}
-
-			$parameter = strtolower( $parameter ); //Force lower case for ease of use.
-
-			if ( empty( $parameter ) || substr( $parameter, 0, 1 ) == '#' ||
-			     ( $this->parameters->exists( $parameter ) &&
-			       !$this->parameters->testRichness( $parameter ) ) ) {
-				continue;
-			}
-
-			if ( !$this->parameters->exists( $parameter ) ) {
-				$this->logger->warning( Error::WARN_UNKNOWN_PARAM, [$parameter,
-					implode( ', ', $this->parameters->getParametersForRichness() )] );
-				continue;
-			}
-
-			// Ignore parameter settings without argument (except namespace and category).
-			if ( !strlen( $option ) ) {
-				if ( $parameter != 'namespace' && $parameter != 'notnamespace' &&
-				     $parameter != 'category' && $this->parameters->exists( $parameter ) ) {
-					continue;
-				}
-			}
-			$parameters[$parameter][] = $option;
-		}
-
-		return $parameters;
 	}
 
 	/**
@@ -748,6 +803,7 @@ $this->dpl->setLogger($this->logger);
 	 * Work through processed parameters and check for potential issues.
 	 *
 	 * @return bool
+	 * @throws QueryErrorException
 	 */
 	private function doQueryErrorChecks() {
 		/**************************/
@@ -779,8 +835,9 @@ $this->dpl->setLogger($this->logger);
 		// Too many categories.
 		if ( $totalCategories > Config::getSetting( 'maxCategoryCount' ) &&
 		     !Config::getSetting( 'allowUnlimitedCategories' ) ) {
-			$this->logger->critical( Error::CRITICAL_TOO_MANY_CATEGORIES,[
-				Config::getSetting( 'maxCategoryCount' )] );
+			$this->logger->critical( Error::CRITICAL_TOO_MANY_CATEGORIES, [
+				Config::getSetting( 'maxCategoryCount' ),
+			] );
 
 			return false;
 		}
@@ -788,7 +845,7 @@ $this->dpl->setLogger($this->logger);
 		// Not enough categories.(Really?)
 		if ( $totalCategories < Config::getSetting( 'minCategoryCount' ) ) {
 			$this->logger->critical( Error::CRITICAL_TOO_FEW_CATEGORIES,
-			[Config::getSetting( 'minCategoryCount' )] );
+				[ Config::getSetting( 'minCategoryCount' ) ] );
 
 			return false;
 		}
@@ -808,12 +865,12 @@ $this->dpl->setLogger($this->logger);
 
 		// Throw an error in no categories were selected when using category sorting modes or
 		// requesting category information.
-		if ( $totalCategories === 0) {
-			if (in_array( 'categoryadd', $orderMethods )) {
-				$this->logger->critical(Error::CRITICAL_NO_CATEGORIES_FOR_ORDER_METHOD);
+		if ( $totalCategories === 0 ) {
+			if ( in_array( 'categoryadd', $orderMethods ) ) {
+				$this->logger->critical( Error::CRITICAL_NO_CATEGORIES_FOR_ORDER_METHOD );
 			}
 
-			if ($this->parameters->getParameter( 'addfirstcategorydate' ) === true) {
+			if ( $this->parameters->getParameter( 'addfirstcategorydate' ) === true ) {
 				$this->logger->critical( Error::CRITICAL_NO_CATEGORIES_FOR_ADD_DATE );
 			}
 
@@ -834,8 +891,9 @@ $this->dpl->setLogger($this->logger);
 		if ( $this->parameters->getParameter( 'dominantsection' ) > 0 &&
 		     count( $this->parameters->getParameter( 'seclabels' ) ) <
 		     $this->parameters->getParameter( 'dominantsection' ) ) {
-			$this->logger->critical( Error::CRITICAL_DOMINANT_SECTION_RANGE,[
-				count( $this->parameters->getParameter( 'seclabels' ) )] );
+			$this->logger->critical( Error::CRITICAL_DOMINANT_SECTION_RANGE, [
+				count( $this->parameters->getParameter( 'seclabels' ) ),
+			] );
 
 			return false;
 		}
@@ -843,8 +901,10 @@ $this->dpl->setLogger($this->logger);
 		// category-style output requested with not compatible order method
 		if ( $this->parameters->getParameter( 'mode' ) == 'category' &&
 		     !array_intersect( $orderMethods, [ 'sortkey', 'title', 'titlewithoutnamespace' ] ) ) {
-			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [ 'mode=category',
-			                                                               'sortkey | title | titlewithoutnamespace'] );
+			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [
+				'mode=category',
+				'sortkey | title | titlewithoutnamespace',
+			] );
 
 			return false;
 		}
@@ -852,8 +912,10 @@ $this->dpl->setLogger($this->logger);
 		// addpagetoucheddate=true with unappropriate order methods
 		if ( $this->parameters->getParameter( 'addpagetoucheddate' ) &&
 		     !array_intersect( $orderMethods, [ 'pagetouched', 'title' ] ) ) {
-			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [ 'addpagetoucheddate=true',
-			                                                               'pagetouched | title'] );
+			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [
+				'addpagetoucheddate=true',
+				'pagetouched | title',
+			] );
 
 			return false;
 		}
@@ -866,8 +928,10 @@ $this->dpl->setLogger($this->logger);
 		       $this->parameters->getParameter( 'allrevisionssince' ) ||
 		       $this->parameters->getParameter( 'firstrevisionsince' ) ||
 		       $this->parameters->getParameter( 'lastrevisionbefore' ) ) ) {
-			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [ 'addeditdate=true',
-			                                                               'firstedit | lastedit'] );
+			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [
+				'addeditdate=true',
+				'firstedit | lastedit',
+			] );
 
 			return false;
 		}
@@ -884,16 +948,20 @@ $this->dpl->setLogger($this->logger);
 		     !$this->parameters->getParameter( 'allrevisionssince' ) &&
 		     !$this->parameters->getParameter( 'firstrevisionsince' ) &&
 		     !$this->parameters->getParameter( 'lastrevisionbefore' ) ) {
-			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [ 'adduser=true',
-			                                                               'firstedit | lastedit'] );
+			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [
+				'adduser=true',
+				'firstedit | lastedit',
+			] );
 
 			return false;
 		}
 
 		if ( $this->parameters->getParameter( 'minoredits' ) &&
 		     !array_intersect( $orderMethods, [ 'firstedit', 'lastedit' ] ) ) {
-			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [ 'minoredits',
-			                                                               'firstedit | lastedit'] );
+			$this->logger->critical( Error::CRITICAL_WRONG_ORDER_METHOD, [
+				'minoredits',
+				'firstedit | lastedit',
+			] );
 
 			return false;
 		}
@@ -911,8 +979,10 @@ $this->dpl->setLogger($this->logger);
 					$this->tableNames['page'] . ' LEFT OUTER JOIN ' .
 					$this->tableNames['categorylinks'] . ' ON ' . $this->tableNames['page'] .
 					'.page_id=cl_from';
-				$this->logger->critical( Error::CRITICAL_NO_CL_VIEW, [ $this->tableNames['dpl_clview'],
-				                                                       $sql] );
+				$this->logger->critical( Error::CRITICAL_NO_CL_VIEW, [
+					$this->tableNames['dpl_clview'],
+					$sql,
+				] );
 
 				return false;
 			}
@@ -936,14 +1006,16 @@ $this->dpl->setLogger($this->logger);
 		// headingmode has effects with ordermethod on multiple components only
 		if ( $this->parameters->getParameter( 'headingmode' ) != 'none' &&
 		     count( $orderMethods ) < 2 ) {
-			$this->logger->warning( Error::WARN_HEADING_MODE_TOO_FEW_ORDER_METHODS,[
-				$this->parameters->getParameter( 'headingmode' ), 'none'] );
+			$this->logger->warning( Error::WARN_HEADING_MODE_TOO_FEW_ORDER_METHODS, [
+				$this->parameters->getParameter( 'headingmode' ),
+				'none',
+			] );
 			$this->parameters->setParameter( 'headingmode', 'none' );
 		}
 
 		// The 'openreferences' parameter is incompatible with many other options.
 		if ( $this->parameters->isOpenReferencesConflict() &&
-		     $this->parameters->getParameter( 'openreferences' ) === true ) {
+		     $this->parameters->openReferencesEnabled() ) {
 			$this->logger->critical( Error::CRITICAL_OPEN_REFERENCES );
 
 			return false;
@@ -952,40 +1024,32 @@ $this->dpl->setLogger($this->logger);
 		return true;
 	}
 
+	private function getRowCalculationMode() {
+		$resultsHeader = $this->parameters->getParameter( 'resultsheader' );
+		$noResultsHeader = $this->parameters->getParameter( 'noresultsheader' );
+		$resultsFooter = $this->parameters->getParameter( 'resultsfooter' );
+		$checkString = $resultsHeader . $noResultsHeader . $resultsFooter;
+
+		if ( !Config::getSetting( 'allowUnlimitedResults' ) &&
+		     !$this->parameters->goalParameterEqualsCategories() &&
+		     strpos( $checkString, '%TOTALPAGES%' ) !== false ) {
+			return true;
+		}
+
+		return false;
+	}
+
 	/**
 	 * Process Query Results
 	 *
 	 * @param \Wikimedia\Rdbms\ResultWrapper $result Mediawiki Result Object
-	 * @return Title[] Array of Article objects.
+	 * @return Article[] Array of Article objects.
 	 * @throws \MWException
+	 * @throws \Exception
 	 */
 	private function processQueryResults( $result ) {
-		/*******************************/
-		/* Random Count Pick Generator */
-		/*******************************/
-		$pick = [];
 		$randomCount = $this->parameters->getParameter( 'randomcount' );
-
-		if ( $randomCount > 0 ) {
-			$nResults = $this->dbr->numRows( $result );
-
-			// mt_srand() seeding was removed due to PHP 5.2.1 and above no longer generating the
-			// same sequence for the same seed.
-			// Constrain the total amount of random results to not be greater than the total
-			// results.
-			if ( $randomCount > $nResults ) {
-				$randomCount = $nResults;
-			}
-
-			// This is 50% to 150% faster than the old while (true) version that could keep
-			// rechecking the same random key over and over again.
-			// Generate pick numbers for results.
-			$pick = range( 1, $nResults );
-			// Shuffle the pick numbers.
-			shuffle( $pick );
-			// Select pick numbers from the beginning to the maximum of $randomCount.
-			$pick = array_slice( $pick, 0, $randomCount );
-		}
+		$picks = $this->getRandomNumberPicks( $result, $randomCount );
 
 		$articles = [];
 
@@ -998,14 +1062,14 @@ $this->dpl->setLogger($this->logger);
 			$i ++;
 
 			// In random mode skip articles which were not chosen.
-			if ( $randomCount > 0 && !in_array( $i, $pick ) ) {
+			if ( $randomCount > 0 && !in_array( $i, $picks ) ) {
 				continue;
 			}
 
-			if ( $this->parameters->getParameter( 'goal' ) == 'categories' ) {
+			if ( $this->parameters->goalParameterEqualsCategories() ) {
 				$pageNamespace = NS_CATEGORY;
 				$pageTitle = $row['cl_to'];
-			} elseif ( $this->parameters->getParameter( 'openreferences' ) ) {
+			} elseif ( $this->parameters->openReferencesEnabled() ) {
 				if ( count( $this->parameters->getParameter( 'imagecontainer' ) ) > 0 ) {
 					$pageNamespace = NS_FILE;
 					$pageTitle = $row['il_to'];
@@ -1042,6 +1106,82 @@ $this->dpl->setLogger($this->logger);
 		$this->dbr->freeResult( $result );
 
 		return $articles;
+	}
+
+	/**
+	 * Random Count Pick Generator
+	 * If 'randomseed' is set will use a Mesenne Twister Implementation
+	 * Else uses random numbers
+	 *
+	 * @param ResultWrapper $result
+	 * @param int $quantity the total count returned
+	 * @return array|int[]
+	 * @throws MWException
+	 * @throws \Exception
+	 */
+	private function getRandomNumberPicks( ResultWrapper $result, $quantity ) {
+		$picks = [];
+		$randomSeed = $this->parameters->getParameter( 'randomseed' );
+
+		if ( $quantity > 0 ) {
+			$nResults = $this->dbr->numRows( $result );
+
+			if ( $quantity > $nResults ) {
+				$quantity = $nResults;
+			}
+
+			if ( !is_null( $randomSeed ) ) {
+				$picks = $this->getRandomNumbersWithSeed( $randomSeed, $quantity, 1, $nResults );
+			} else {
+				$picks = $this->getRandomNumbers( $quantity, 1, $nResults );
+			}
+		}
+
+		return $picks;
+	}
+
+	/**
+	 * @param string|int $seed the seed to use
+	 * @param int $length
+	 * @param int $lowerBound
+	 * @param int $upperBound
+	 * @return int[]
+	 * @throws MWException
+	 * @throws \Exception
+	 */
+	private function getRandomNumbersWithSeed( $seed, $length, $lowerBound, $upperBound ) {
+		$picks = [];
+		$twister = new MersenneTwister();
+
+		if ( is_numeric( $seed ) ) {
+			$twister->init_with_integer( $seed );
+		} elseif ( is_string( $seed ) ) {
+			$twister->init_with_string( $seed );
+		} else {
+			throw new MWException( __METHOD__ . ' Random seed must be an int or string' );
+		}
+
+		while ( count( $picks ) < $length ) {
+			$pick = $twister->rangeint( $lowerBound, $upperBound );
+			if ( !in_array( $pick, $picks ) ) {
+				$picks[] = $pick;
+			}
+		}
+
+		return $picks;
+	}
+
+	/**
+	 * @param int $length
+	 * @param int $lowerBound
+	 * @param int $upperBound
+	 * @return int[]
+	 */
+	private function getRandomNumbers( $length, $lowerBound, $upperBound ) {
+		$picks = range( $lowerBound, $upperBound );
+		shuffle( $picks );
+
+		return array_slice( $picks, 0, $length );
 	}
 
 	/**
@@ -1144,30 +1284,21 @@ $this->dpl->setLogger($this->logger);
 	 * Trigger Resets and Eliminates that run at the end of parsing.
 	 *
 	 * @param string $output Full output including header, footer, and any warnings.
-	 * @param array $reset End Reset Booleans
-	 * @param array $eliminate End Eliminate Booleans
-	 * @param bool $isParserTag Call as a parser tag
 	 * @return void
 	 */
-	private function triggerEndResets( $output, &$reset, &$eliminate, $isParserTag ) {
+	private function triggerEndResets( $output ) {
 		global $wgHooks;
 
 		$localParser = new WikiParser();
 		$parserOutput =
 			$localParser->parse( $output, $this->parser->mTitle, $this->parser->mOptions );
 
-		if ( !is_array( $reset ) ) {
-			$reset = [];
-		}
-		$reset = array_merge( $reset, (array)$this->parameters->getParameter( 'reset' ) );
+		$reset = array_merge( $this->resets, (array)$this->parameters->getParameter( 'reset' ) );
 
-		if ( !is_array( $eliminate ) ) {
-			$eliminate = [];
-		}
 		$eliminate =
-			array_merge( $eliminate, (array)$this->parameters->getParameter( 'eliminate' ) );
+			array_merge( $this->eliminates, (array)$this->parameters->getParameter( 'eliminate' ) );
 
-		if ( $isParserTag === true ) {
+		if ( $this->parserTagMode ) {
 			// In tag mode 'eliminate' is the same as 'reset' for templates, categories, and images.
 			if ( isset( $eliminate['templates'] ) && $eliminate['templates'] ) {
 				$reset['templates'] = true;
@@ -1197,7 +1328,7 @@ $this->dpl->setLogger($this->logger);
 			}
 		}
 
-		if ( ( $isParserTag === true && isset( $reset['links'] ) ) || $isParserTag === false ) {
+		if ( ( $this->parserTagMode && isset( $reset['links'] ) ) || !$this->parserTagMode ) {
 			if ( isset( $reset['links'] ) ) {
 				DynamicPageListHooks::$createdLinks['resetLinks'] = true;
 			}

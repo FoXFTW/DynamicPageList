@@ -70,7 +70,7 @@ class DynamicPageListHooks {
 	 * @return bool true
 	 * @throws \MWException
 	 */
-	public static function onWikiParserFirstCallInit( WikiParser &$parser ) {
+	public static function onParserFirstCallInit( WikiParser &$parser ) {
 		self::init();
 
 		//DPL offers the same functionality as Intersection.  So we register the <DynamicPageList> tag in case LabeledSection Extension is not installed so that the section markers are removed.
@@ -148,7 +148,8 @@ class DynamicPageListHooks {
 	 * @return string HTML
 	 * @throws \MWException
 	 */
-	public static function intersectionTag( $input, array $args, WikiParser $parser, PPFrame $frame ) {
+	public static function intersectionTag( $input, array $args, WikiParser $parser, PPFrame $frame
+	) {
 		self::setLikeIntersection( true );
 
 		return self::executeTag( $input, $args, $parser, $frame );
@@ -170,54 +171,59 @@ class DynamicPageListHooks {
 	 * @param string $input Raw User Input
 	 * @param array $args Arguments on the tag.(While not used, it is left here for future
 	 *  compatibility.)
-	 * @param \Parser $parser WikiParser object.
+	 * @param \Parser $wikiParser WikiParser object.
 	 * @param \PPFrame $frame PPFrame object.
 	 * @return string HTML
 	 * @throws \MWException
 	 */
-	private static function executeTag( $input, array $args, WikiParser $parser, PPFrame $frame ) {
+	private static function executeTag( $input, array $args, WikiParser $wikiParser, PPFrame $frame
+	) {
 		// entry point for user tag <dpl>  or  <DynamicPageList>
 		// create list and do a recursive parse of the output
 		$saveTemplates = [];
 		$saveCategories = [];
 		$saveImages = [];
+		$reset = [];
+		$eliminate = [];
 
-		$parse = new Parser();
-		$parse->setLogger(static::$logger);
+		$parser = new Parser( true );
+		$parser->setLogger( static::$logger );
 
 		if ( Config::getSetting( 'recursiveTagParse' ) ) {
-			$input = $parser->recursiveTagParse( $input, $frame );
+			$input = $wikiParser->recursiveTagParse( $input, $frame );
 		}
 
-		$text = $parse->parse( $input, $parser, $reset, $eliminate, true );
+		$parser->setResetAndEliminates( $reset, $eliminate );
+		$parser->setWikiParser( $wikiParser );
+		$text = $parser->parse( $input );
 
 		if ( isset( $reset['templates'] ) &&
 		     $reset['templates'] ) {    // we can remove the templates by save/restore
-			$saveTemplates = $parser->mOutput->mTemplates;
+			$saveTemplates = $wikiParser->mOutput->mTemplates;
 		}
 
 		if ( isset( $reset['categories'] ) &&
 		     $reset['categories'] ) {    // we can remove the categories by save/restore
-			$saveCategories = $parser->mOutput->mCategories;
+			$saveCategories = $wikiParser->mOutput->mCategories;
 		}
 
 		if ( isset( $reset['images'] ) &&
 		     $reset['images'] ) {    // we can remove the images by save/restore
-			$saveImages = $parser->mOutput->mImages;
+			$saveImages = $wikiParser->mOutput->mImages;
 		}
 
-		$parsedDPL = $parser->recursiveTagParse( $text );
+		$parsedDPL = $wikiParser->recursiveTagParse( $text );
 
 		if ( isset( $reset['templates'] ) && $reset['templates'] ) {
-			$parser->mOutput->mTemplates = $saveTemplates;
+			$wikiParser->mOutput->mTemplates = $saveTemplates;
 		}
 
 		if ( isset( $reset['categories'] ) && $reset['categories'] ) {
-			$parser->mOutput->mCategories = $saveCategories;
+			$wikiParser->mOutput->mCategories = $saveCategories;
 		}
 
 		if ( isset( $reset['images'] ) && $reset['images'] ) {
-			$parser->mOutput->mImages = $saveImages;
+			$wikiParser->mOutput->mImages = $saveImages;
 		}
 
 		return $parsedDPL;
@@ -242,15 +248,17 @@ class DynamicPageListHooks {
 	/**
 	 * The #dpl parser tag entry point.
 	 *
-	 * @param \Parser $parser WikiParser object passed as a reference.
+	 * @param \Parser $wikiParser WikiParser object passed as a reference.
 	 * @return array|string Wiki Text
 	 * @throws \MWException
 	 */
-	public static function dplWikiParserFunction( WikiParser &$parser ) {
+	public static function dplWikiParserFunction( WikiParser &$wikiParser ) {
 		self::setLikeIntersection( false );
 
 		// callback for the parser function {{#dpl:	  or   {{DynamicPageList::
 		$input = "";
+		$reset = [];
+		$eliminate = [];
 
 		$numArgs = func_num_args();
 
@@ -268,15 +276,17 @@ class DynamicPageListHooks {
 			$input .= str_replace( "\n", "", $p1 ) . "\n";
 		}
 
-		$parse = new Parser();
-		$parse->setLogger(static::$logger);
-		$dplResult = $parse->parse( $input, $parser, $reset, $eliminate, false );
+		$parser = new Parser( false );
+		$parser->setLogger( static::$logger );
+		$parser->setWikiParser( $wikiParser );
+		$parser->setResetAndEliminates( $reset, $eliminate );
+		$dplResult = $parser->parse( $input );
 
 		return [ // parser needs to be coaxed to do further recursive processing
-		         $parser->getPreprocessor()
+		         $wikiParser->getPreprocessor()
 			         ->preprocessToObj( $dplResult, WikiParser::PTD_FOR_INCLUSION ),
 		         'isLocalObj' => true,
-		         'title' => $parser->getTitle(),
+		         'title' => $wikiParser->getTitle(),
 		];
 
 	}
