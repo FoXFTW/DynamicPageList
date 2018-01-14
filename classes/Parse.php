@@ -13,7 +13,7 @@ namespace DPL;
 
 use DynamicPageListHooks;
 use MWException;
-use Parser;
+use Parser as WikiParser;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerInterface;
 use Title;
@@ -137,7 +137,7 @@ class Parse implements LoggerAwareInterface {
 	 * @return string Wiki/HTML Output
 	 * @throws \MWException
 	 */
-	public function parse( $input, Parser $parser, &$reset, &$eliminate, $isParserTag = false ) {
+	public function parse( $input, WikiParser $parser, &$reset, &$eliminate, $isParserTag = false ) {
 		$dplStartTime = microtime( true );
 		$this->parser = $parser;
 
@@ -1148,7 +1148,7 @@ $this->dpl->setLogger($this->logger);
 	private function triggerEndResets( $output, &$reset, &$eliminate, $isParserTag ) {
 		global $wgHooks;
 
-		$localParser = new Parser();
+		$localParser = new WikiParser();
 		$parserOutput =
 			$localParser->parse( $output, $this->parser->mTitle, $this->parser->mOptions );
 

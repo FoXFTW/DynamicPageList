@@ -27,7 +27,7 @@
 
 namespace DPL;
 
-use Parser;
+use Parser as WikiParser;
 use Title;
 
 /**
@@ -51,7 +51,7 @@ class LST {
 	 * @return array
 	 */
 	public static function includeSection(
-		Parser $parser, $page = '', $sec = '', $to = '', $recursionCheck = true, $trim = false,
+		WikiParser $parser, $page = '', $sec = '', $to = '', $recursionCheck = true, $trim = false,
 		$skipPattern = []
 	) {
 		$output = [];
@@ -89,7 +89,7 @@ class LST {
 	 * @param string $text
 	 * @return bool
 	 */
-	public static function text( Parser $parser, $page, &$title, &$text ) {
+	public static function text( WikiParser $parser, $page, &$title, &$text ) {
 		$title = Title::newFromText( $page );
 
 		if ( is_null( $title ) ) {
@@ -160,7 +160,7 @@ class LST {
 	 * @return mixed|null|string|string[]
 	 */
 	private static function parse(
-		Parser $parser, Title $title, $text, $part1, $skipHead = 0, $recursionCheck = true,
+		WikiParser $parser, Title $title, $text, $part1, $skipHead = 0, $recursionCheck = true,
 		$maxLength = - 1, $link = '', $trim = false, $skipPattern = []
 	) {
 		// if someone tries something like<section begin=blah>lst only</section>
@@ -201,7 +201,7 @@ class LST {
 	 * @param string $part1
 	 * @return bool
 	 */
-	public static function open( Parser $parser, $part1 ) {
+	public static function open( WikiParser $parser, $part1 ) {
 		// Infinite loop test
 		if ( isset( $parser->mTemplatePath[$part1] ) ) {
 			wfDebug( __METHOD__ . ": template loop broken at '$part1'\n" );
@@ -222,7 +222,7 @@ class LST {
 	 * @param string $part1
 	 * @return void
 	 */
-	public static function close( Parser $parser, $part1 ) {
+	public static function close( WikiParser $parser, $part1 ) {
 		// Infinite loop test
 		if ( isset( $parser->mTemplatePath[$part1] ) ) {
 			unset( $parser->mTemplatePath[$part1] );
@@ -377,7 +377,7 @@ class LST {
 	 * @return array
 	 */
 	public static function includeHeading(
-		Parser $parser, $page = '', $sec = '', $to = '', &$sectionHeading, $recursionCheck = true,
+		WikiParser $parser, $page = '', $sec = '', $to = '', &$sectionHeading, $recursionCheck = true,
 		$maxLength = - 1, $link = 'default', $trim = false, $skipPattern = []
 	) {
 		$output = [];
@@ -413,7 +413,7 @@ class LST {
 	 * @return array
 	 */
 	public static function extractHeadingFromText(
-		Parser $parser, $page, Title $title, $text, $sec = '', $to = '', &$sectionHeading,
+		WikiParser $parser, $page, Title $title, $text, $sec = '', $to = '', &$sectionHeading,
 		$recursionCheck = true, $maxLength = - 1, $cLink = 'default', $trim = false,
 		$skipPattern = []
 	) {
@@ -640,7 +640,7 @@ class LST {
 	 * @return array
 	 */
 	public static function includeTemplate(
-		Parser $parser, DynamicPageList &$dpl, $dplNr, Article $article, $template1 = '',
+		WikiParser $parser, DynamicPageList &$dpl, $dplNr, Article $article, $template1 = '',
 		$template2 = '', $defaultTemplate, $mustMatch, $mustNotMatch, $matchParsed, $iTitleMaxLen,
 		$catList
 	) {

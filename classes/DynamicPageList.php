@@ -13,7 +13,7 @@ namespace DPL;
 
 use CategoryViewer;
 use ContentHandler;
-use Parser;
+use Parser as WikiParser;
 use Psr\Log\LoggerAwareInterface;
 use Psr\Log\LoggerInterface;
 use ReadOnlyError;
@@ -189,7 +189,7 @@ class DynamicPageList implements LoggerAwareInterface {
 		$headings, $bHeadingCount, $iColumns, $iRows, $iRowSize, $sRowColFormat, $articles,
 		$headingType, ListMode $hListMode, ListMode $listMode, $bEscapeLinks, $bAddExternalLink,
 		$includePage, $includeMaxLen, $includeSecLabels, $includeSecLabelsMatch,
-		$includeSecLabelsNotMatch, $includeMatchParsed, Parser &$parser, $replaceInTitle,
+		$includeSecLabelsNotMatch, $includeMatchParsed, WikiParser &$parser, $replaceInTitle,
 		$iTitleMaxLen, $defaultTemplateSuffix, $aTableRow, $bIncludeTrim, $iTableSortCol,
 		$updateRules, $deleteRules
 	) {
