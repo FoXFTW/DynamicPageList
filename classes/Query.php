@@ -1140,7 +1140,7 @@ class Query implements LoggerAwareInterface {
 		// tell the query optimizer not to look at rows that the following subquery will filter out anyway
 		$this->addWhere( [
 			$this->tableNames['page'] . '.page_id = rev.rev_page',
-			'rev.rev_timestamp >= ' . $this->dbr->addQuotes( $option ),
+			'rev.rev_timestamp >= ' . $this->convertTimestamp( $option ),
 		] );
 		$this->addWhere( [
 			$this->tableNames['page'] . '.page_id = rev.rev_page',
