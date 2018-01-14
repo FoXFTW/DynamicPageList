@@ -24,7 +24,7 @@ class DynamicPageListHooks {
 
 	/**
 	 * the links created by DPL are collected here;
-	 * they can be removed during the final ouput
+	 * they can be removed during the final output
 	 * phase of the MediaWiki parser
 	 *
 	 * @var array
