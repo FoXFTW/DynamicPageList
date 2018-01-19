@@ -147,6 +147,7 @@ class DynamicPageListHooks {
 	 * @param \PPFrame $frame PPFrame object.
 	 * @return string HTML
 	 * @throws \MWException
+	 * @throws \Exception
 	 */
 	public static function intersectionTag( $input, array $args, WikiParser $parser, PPFrame $frame
 	) {
@@ -175,6 +176,7 @@ class DynamicPageListHooks {
 	 * @param \PPFrame $frame PPFrame object.
 	 * @return string HTML
 	 * @throws \MWException
+	 * @throws \Exception
 	 */
 	private static function executeTag( $input, array $args, WikiParser $wikiParser, PPFrame $frame
 	) {
@@ -238,6 +240,7 @@ class DynamicPageListHooks {
 	 * @param \PPFrame $frame PPFrame object.
 	 * @return string HTML
 	 * @throws \MWException
+	 * @throws \Exception
 	 */
 	public static function dplTag( $input, array $args, WikiParser $parser, PPFrame $frame ) {
 		self::setLikeIntersection( false );
@@ -251,6 +254,7 @@ class DynamicPageListHooks {
 	 * @param \Parser $wikiParser WikiParser object passed as a reference.
 	 * @return array|string Wiki Text
 	 * @throws \MWException
+	 * @throws Exception
 	 */
 	public static function dplWikiParserFunction( WikiParser &$wikiParser ) {
 		self::setLikeIntersection( false );
