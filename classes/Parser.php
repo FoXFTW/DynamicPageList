@@ -421,7 +421,7 @@ class Parser implements LoggerAwareInterface {
 				continue;
 			}
 
-			Variables::setVar( [ '', '', $argName, $argValue ] );
+			Variables::setVar( [ $argName, $argValue ] );
 
 			if ( defined( 'ExtVariables::VERSION' ) ) {
 				\ExtVariables::get( $this->parser )->setVarValue( $argName, $argValue );
